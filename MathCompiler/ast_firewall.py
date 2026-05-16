@@ -30,7 +30,6 @@ class _FirewallVisitor(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call):
         if not isinstance(node.func, ast.Name) or node.func.id not in ALLOWED_FUNCS:
             raise ValueError(f"Unauthorized function call: '{ast.unparse(node.func)}'")
-        # Only visit arguments, skip the function Name node itself to avoid visit_Name flagging it
         for arg in node.args:
             self.visit(arg)
 
@@ -40,8 +39,7 @@ class _FirewallVisitor(ast.NodeVisitor):
         super().generic_visit(node)
 
 
-def validate_equation(equation: str) -> None:
-    # Pre-process state.x -> state_x for AST parsing as Name nodes
+def validate_equation(equation: str) -> str:
     norm_eq = (
         equation.replace("state.x", "state_x")
         .replace("state.y", "state_y")
@@ -56,3 +54,5 @@ def validate_equation(equation: str) -> None:
         _FirewallVisitor().visit(tree)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Firewall rejection: {exc}")
+
+    return norm_eq

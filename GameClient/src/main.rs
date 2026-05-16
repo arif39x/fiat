@@ -12,15 +12,24 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use serde::Deserialize;
 
 mod live_editor_ui;
-use live_editor_ui::EditorState;
+use live_editor_ui::{EditorState, LogLevel};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct StateUniform {
-    x: f32,
-    y: f32,
-    z: f32,
-    padding: f32,
+    entities: [[f32; 4]; 64],
+    count: u32,
+    padding: [u32; 3],
+}
+
+impl Default for StateUniform {
+    fn default() -> Self {
+        Self {
+            entities: [[0.0; 4]; 64],
+            count: 0,
+            padding: [0; 3],
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -28,6 +37,7 @@ struct StateUniform {
 enum ServerMessage {
     PhysicsState { x: Vec<f32>, y: Vec<f32>, z: Vec<f32> },
     ShaderUpdate { wgsl: String },
+    Error { detail: String },
 }
 
 struct Renderer {
@@ -51,7 +61,7 @@ impl Renderer {
             ..Default::default()
         });
         
-        let surface = unsafe { instance.create_surface(window.clone()).unwrap() };
+        let surface = instance.create_surface(window.clone()).unwrap();
         
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -92,7 +102,7 @@ impl Renderer {
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[StateUniform { x: 0.0, y: 0.0, z: 100.0, padding: 0.0 }]),
+            contents: bytemuck::cast_slice(&[StateUniform::default()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -170,7 +180,6 @@ impl Renderer {
     }
 
     fn update_shader(&mut self, wgsl: &str) {
-        println!("[Renderer] Updating shader...");
         let new_shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Dynamic Shader"),
             source: wgpu::ShaderSource::Wgsl(wgsl.into()),
@@ -178,7 +187,6 @@ impl Renderer {
         
         self.render_pipeline = Self::create_pipeline(&self.device, &self.pipeline_layout, &new_shader, self.config.format);
         self.shader_module = new_shader;
-        println!("[Renderer] Pipeline updated successfully.");
     }
 }
 
@@ -200,7 +208,7 @@ pub async fn run() {
     );
     let mut egui_renderer = egui_wgpu::Renderer::new(&renderer.device, renderer.config.format, None, 1);
 
-    let state = Arc::new(Mutex::new(StateUniform { x: 0.0, y: 0.0, z: 100.0, padding: 0.0 }));
+    let state = Arc::new(Mutex::new(StateUniform::default()));
     let state_clone = state.clone();
     
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
@@ -209,7 +217,7 @@ pub async fn run() {
 
     let new_wgsl = Arc::new(Mutex::new(None::<String>));
     let new_wgsl_clone = new_wgsl.clone();
-    let log_queue = Arc::new(Mutex::new(Vec::<String>::new()));
+    let log_queue = Arc::new(Mutex::new(Vec::<(LogLevel, String)>::new()));
     let log_queue_clone = log_queue.clone();
 
     std::thread::spawn(move || {
@@ -218,33 +226,37 @@ pub async fn run() {
             loop {
                 match connect_async("ws://127.0.0.1:8080/ws").await {
                     Ok((ws_stream, _)) => {
-                        log_queue_clone.lock().unwrap().push("[WS] connected".to_string());
+                        log_queue_clone.lock().unwrap().push((LogLevel::Info, "[WS] connected".to_string()));
                         let (mut write, mut read) = ws_stream.split();
                         
                         let read_task = async {
                             while let Some(msg) = read.next().await {
                                 if let Ok(Message::Text(text)) = msg {
-                                    println!("[WS] Received: {}", text);
                                     match serde_json::from_str::<ServerMessage>(&text) {
                                         Ok(msg_enum) => {
                                             match msg_enum {
                                                 ServerMessage::PhysicsState { x, y, z } => {
-                                                    if !x.is_empty() {
-                                                        let mut lock = state_clone.lock().unwrap();
-                                                        lock.x = x[0];
-                                                        lock.y = y[0];
-                                                        lock.z = z[0];
+                                                    let mut lock = state_clone.lock().unwrap();
+                                                    let count = x.len().min(64);
+                                                    lock.count = count as u32;
+                                                    for i in 0..count {
+                                                        lock.entities[i][0] = x[i];
+                                                        lock.entities[i][1] = y[i];
+                                                        lock.entities[i][2] = z[i];
+                                                        lock.entities[i][3] = 0.0;
                                                     }
                                                 }
                                                 ServerMessage::ShaderUpdate { wgsl } => {
-                                                    log_queue_clone.lock().unwrap().push("[WS] shader update received".to_string());
-                                                    println!("[WS] Shader update received, length: {}", wgsl.len());
+                                                    log_queue_clone.lock().unwrap().push((LogLevel::Ok, "shader update received".to_string()));
                                                     *new_wgsl_clone.lock().unwrap() = Some(wgsl);
+                                                }
+                                                ServerMessage::Error { detail } => {
+                                                    log_queue_clone.lock().unwrap().push((LogLevel::Err, format!("Compiler: {}", detail)));
                                                 }
                                             }
                                         }
-                                        Err(e) => {
-                                            println!("[WS] Deserialization error: {}. Raw text: {}", e, text);
+                                        Err(_) => {
+                                            // Handle raw JSON errors or other message types if needed
                                         }
                                     }
                                 }
@@ -254,7 +266,7 @@ pub async fn run() {
                         let write_task = async {
                             while let Some(to_send) = rx.recv().await {
                                 if let Err(e) = write.send(Message::Text(to_send)).await {
-                                    log_queue_clone.lock().unwrap().push(format!("[WS] send error: {}", e));
+                                    log_queue_clone.lock().unwrap().push((LogLevel::Err, format!("[WS] send error: {}", e)));
                                     break;
                                 }
                             }
@@ -266,13 +278,18 @@ pub async fn run() {
                         }
                     }
                     Err(e) => {
-                        log_queue_clone.lock().unwrap().push(format!("[WS] connection failed: {}", e));
+                        log_queue_clone.lock().unwrap().push((LogLevel::Warn, format!("[WS] connection failed: {}", e)));
                         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                     }
                 }
             }
         });
     });
+
+    let mut _last_frame_time = std::time::Instant::now();
+    let mut frame_count = 0;
+    let mut fps = 0.0;
+    let mut fps_timer = std::time::Instant::now();
 
     let _ = event_loop.run(move |event, elwt| {
         match event {
@@ -292,22 +309,47 @@ pub async fn run() {
                         }
                     }
                     WindowEvent::RedrawRequested => {
+                        // FPS calculation
+                        frame_count += 1;
+                        let now = std::time::Instant::now();
+                        if now.duration_since(fps_timer).as_secs_f32() >= 1.0 {
+                            fps = frame_count as f32 / now.duration_since(fps_timer).as_secs_f32();
+                            frame_count = 0;
+                            fps_timer = now;
+                        }
+                        editor.metrics.fps = fps;
+
                         // Check for new shaders
                         if let Some(wgsl) = new_wgsl.lock().unwrap().take() {
                             renderer.update_shader(&wgsl);
-                            editor.push_log("[OK] pipeline updated");
+                            editor.push_log(LogLevel::Ok, "pipeline updated");
                         }
 
                         // Flush logs
                         {
                             let mut logs = log_queue.lock().unwrap();
-                            for l in logs.drain(..) {
-                                editor.push_log(&l);
+                            for (lvl, l) in logs.drain(..) {
+                                if let LogLevel::Err = lvl {
+                                    editor.error_msg = Some(l.clone());
+                                } else if let LogLevel::Ok = lvl {
+                                    editor.error_msg = None;
+                                }
+                                editor.push_log(lvl, &l);
                             }
                         }
 
                         let uniform = *state.lock().unwrap();
                         renderer.queue.write_buffer(&renderer.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]));
+
+                        // Update uniforms tab data
+                        editor.uniforms = vec![
+                            ("state.count".to_string(), format!("{}", uniform.count)),
+                            ("resolution".to_string(), format!("{}x{}", renderer.config.width, renderer.config.height)),
+                            ("entities".to_string(), format!("{}", uniform.count)),
+                        ];
+                        if uniform.count > 0 {
+                            editor.uniforms.push(("state.entities[0]".to_string(), format!("({:.2}, {:.2}, {:.2})", uniform.entities[0][0], uniform.entities[0][1], uniform.entities[0][2])));
+                        }
 
                         let output = match renderer.surface.get_current_texture() {
                             Ok(output) => output,
@@ -328,13 +370,11 @@ pub async fn run() {
 
                         let mut encoder = renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Render Encoder") });
                         
-                        // Screen descriptor for egui
                         let screen_descriptor = egui_wgpu::ScreenDescriptor {
                             size_in_pixels: [renderer.config.width, renderer.config.height],
                             pixels_per_point: window.scale_factor() as f32,
                         };
 
-                        // Upload egui textures/buffers
                         for (id, delta) in &full_output.textures_delta.set {
                             egui_renderer.update_texture(&renderer.device, &renderer.queue, *id, delta);
                         }
@@ -360,11 +400,9 @@ pub async fn run() {
                             render_pass.set_bind_group(0, &renderer.bind_group, &[]);
                             render_pass.draw(0..3, 0..1);
 
-                            // Render egui
                             egui_renderer.render(&mut render_pass, &paint_jobs, &screen_descriptor);
                         }
 
-                        // Cleanup egui textures
                         for id in &full_output.textures_delta.free {
                             egui_renderer.free_texture(id);
                         }

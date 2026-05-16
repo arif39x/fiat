@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,6 +15,12 @@ import (
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
+
+var (
+	compileMu       sync.Mutex
+	compileTimer    *time.Timer
+	compileEquation string
+)
 
 type Client struct {
 	hub  *Hub
@@ -102,27 +109,42 @@ type CompileRequest struct {
 func handleClientMessage(client *Client, message []byte) {
 	var in IncomingMsg
 	if err := json.Unmarshal(message, &in); err == nil && in.Equation != "" {
-		log.Printf("Received equation: %s", in.Equation)
-		reqBody, _ := json.Marshal(CompileRequest{Equation: in.Equation})
-		resp, err := http.Post("http://127.0.0.1:8081/compile_sdf", "application/json", bytes.NewBuffer(reqBody))
-		if err != nil {
-			log.Println("Error calling python:", err)
-			return
+		compileMu.Lock()
+		compileEquation = in.Equation
+		if compileTimer != nil {
+			compileTimer.Stop()
 		}
-		defer resp.Body.Close()
+		compileTimer = time.AfterFunc(300*time.Millisecond, func() {
+			compileMu.Lock()
+			eq := compileEquation
+			compileMu.Unlock()
+			doCompile(client.hub, eq)
+		})
+		compileMu.Unlock()
+	}
+}
 
-		body, _ := io.ReadAll(resp.Body)
-		var compResp map[string]interface{}
-		if err := json.Unmarshal(body, &compResp); err == nil {
-			if wgsl, ok := compResp["wgsl"].(string); ok {
-				outMsg := map[string]string{
-					"wgsl": wgsl,
-				}
-				outBytes, _ := json.Marshal(outMsg)
-				client.hub.broadcast <- outBytes
-			} else if detail, ok := compResp["detail"].(string); ok {
-				log.Printf("Compilation failed: %s", detail)
+func doCompile(hub *Hub, equation string) {
+	log.Printf("Compiling equation: %s", equation)
+	reqBody, _ := json.Marshal(CompileRequest{Equation: equation})
+	resp, err := http.Post("http://127.0.0.1:8081/compile_sdf", "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		log.Println("Error calling python:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var compResp map[string]interface{}
+	if err := json.Unmarshal(body, &compResp); err == nil {
+		if wgsl, ok := compResp["wgsl"].(string); ok {
+			outMsg := map[string]string{
+				"wgsl": wgsl,
 			}
+			outBytes, _ := json.Marshal(outMsg)
+			hub.broadcast <- outBytes
+		} else if detail, ok := compResp["detail"].(string); ok {
+			log.Printf("Compilation failed: %s", detail)
 		}
 	}
 }

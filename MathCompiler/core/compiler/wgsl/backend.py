@@ -11,6 +11,8 @@ from ...ir.math_expr import (
     Sub,
     Variable,
     Vec3,
+    Max,
+    Min,
 )
 from ...ir.scene_nodes import BoxNode, SceneNode, SphereNode, UnionNode
 from ...visitor.expr_visitor import ExprVisitor
@@ -66,7 +68,7 @@ class WGSLExprCompiler(ExprVisitor):
 
     def visit_Pow(self, expr: Pow) -> WGSLNode:
         return WGSLCallExpr(
-            func_name="pow", args=[self.visit(expr.left), self.visit(expr.right)]
+            func_name="safe_pow", args=[self.visit(expr.left), self.visit(expr.right)]
         )
 
     def visit_Sin(self, expr: Sin) -> WGSLNode:
@@ -126,10 +128,6 @@ class WGSLSceneCompiler(SceneVisitor):
         left_res: SdfResult = self.visit(node.left)
         right_res: SdfResult = self.visit(node.right)
 
-        # need a proper min that returns the vec2<f32>(dist, mat_id) with the smallest dist.
-        #  WGSL AST doesn't easily inline a ternary operator without variable bindings,
-        # we'll emit a custom function call like opU(left, right) which handles materials.
-        # For simplicity here, we can assume opU exists in the runtime string.
         return WGSLCallExpr(func_name="opU", args=[left_res, right_res])
 
 
@@ -143,7 +141,6 @@ class WGSLBackend(Backend):
         return compiler.visit(node)
 
     def emit_source(self, ast_node: WGSLNode) -> str:
-        # Extra helper fn for union
         helpers = """
 fn opU(d1: vec2<f32>, d2: vec2<f32>) -> vec2<f32> {
     if (d1.x < d2.x) { return d1; }
@@ -153,7 +150,6 @@ fn opU(d1: vec2<f32>, d2: vec2<f32>) -> vec2<f32> {
         return helpers + "\\n// Generated Expression/Scene:\\n" + ast_node.emit()
 
 
-# Legacy shims for compatibility with existing tests
 def emit_expr(expr: Expr) -> str:
     backend = WGSLBackend()
     ast = backend.compile_expr(expr)

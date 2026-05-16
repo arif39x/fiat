@@ -11,7 +11,7 @@ func main() {
 	hub := NewHub()
 
 	registry.AddEntity(0, 0, 100, 1.0)
-	fields.AddEmitters(0, 0, -20, 50000.0, 50.0)
+	fields.AddEmitter(EmitterGaussian, 0, 0, -20, 50000.0, 50.0)
 
 	go hub.Run()
 	go StartPhysicsLoop(registry, fields, hub)

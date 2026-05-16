@@ -100,7 +100,8 @@ class ComplexityAnalyzer(ExprVisitor):
 
 def analyze_complexity(
     expr: Expr, config: ComplexityConfig = ComplexityConfig()
-) -> None:
-    # Analyzes expression complexity and raises ComplexityError if it exceeds limits.
+) -> Expr:
     visitor = ComplexityAnalyzer(config)
     visitor.visit(expr)
+    expr.complexity_score = visitor.node_count
+    return expr
