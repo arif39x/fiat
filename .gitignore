@@ -4,12 +4,12 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-/GameClient/target/
-/GameClient/Cargo.lock.backup
+/client/target/
+/client/Cargo.lock.backup
 **/*.rs.bk
-/GameServer/main
-/GameServer/main.exe
-/GameServer/GameServer
+/server/main
+/server/main.exe
+/server/GameServer
 *.out
 __pycache__/
 *.py[cod]
@@ -25,6 +25,6 @@ build/
 .coverage
 htmlcov/
 .env
-/MathCompiler/generated_shaders/
-/MathCompiler/export/
+/compiler/generated_shaders/
+/compiler/export/
 *.log

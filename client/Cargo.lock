@@ -1807,27 +1807,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca45419789ae5a7899559e9512e58ca889e41f04f1f2445e9f4b290ceccd1d08"
 
 [[package]]
-name = "rationalist_client"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "chrono",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "env_logger",
- "futures-util",
- "log",
- "pollster",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "raw-window-handle"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2422,6 +2401,27 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "uclid"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "chrono",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "env_logger",
+ "futures-util",
+ "log",
+ "pollster",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "wgpu",
+ "winit",
+]
 
 [[package]]
 name = "unicode-ident"

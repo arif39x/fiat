@@ -1,15 +1,15 @@
-# Rationalist
+# Uclid
 
 A math-physics-chemistry compiler (Preety Weird Right...!?!? )..Yes because i am working on it on that time when my mind is mostly weird..
 
-In Rationalist, there are no polygons or pre-built models. Everything—the ground you walk on, the shapes you see, and the forces that move you—is defined by mathematical equations you type in real time.
+In Uclid, there are no polygons or pre-built models. Everything—the ground you walk on, the shapes you see, and the forces that move you—is defined by mathematical equations you type in real time.
 
 ## Quick Start
 
 1. **Install the basics**: You'll need Go, Rust, and Python 3.11+.
 2. **Setup**:
    ```bash
-   cd MathCompiler && python3 -m venv venv && source venv/bin/activate && pip install fastapi uvicorn pytest
+   cd compiler && python3 -m venv venv && source venv/bin/activate && pip install fastapi uvicorn pytest
    ```
    ```
    cd ..

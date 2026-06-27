@@ -1,27 +1,27 @@
 #!/bin/bash
 
 
-echo "Starting Rationalist Microservices..."
+echo "Starting Uclid Microservices..."
 
-echo "Booting MathCompiler (Python)..."
-cd MathCompiler
+echo "Booting Compiler (Python)..."
+cd compiler
 source venv/bin/activate
-uvicorn main:app --port 8081 &
+uvicorn api:app --port 8081 &
 PID_MATH=$!
 cd ..
 
 sleep 1
 
-echo "Booting GameServer (Go)..."
-cd GameServer
+echo "Booting Server (Go)..."
+cd server
 go run . &
 PID_SERVER=$!
 cd ..
 
 sleep 2
 
-echo "Booting GameClient (Rust Conduit)..."
-cd GameClient
+echo "Booting Client (Rust)..."
+cd client
 cargo run --release
 
 
@@ -29,4 +29,4 @@ echo "Shutting down the universe..."
 kill $PID_MATH
 kill $PID_SERVER
 
-echo "Rationalist Offline."
+echo "Uclid Offline."

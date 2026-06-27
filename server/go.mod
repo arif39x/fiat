@@ -1,4 +1,4 @@
-module rationalist-server
+module uclid-server
 
 go 1.26.1
 
