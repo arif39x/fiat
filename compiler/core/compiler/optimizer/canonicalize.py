@@ -11,16 +11,10 @@ def _expr_weight(expr: Expr) -> tuple:
         return (0, expr.value)
     if isinstance(expr, Variable):
         return (1, expr.name)
-    # Give deeper trees a higher weight (simple approximation)
     return (2, type(expr).__name__)
 
 
 class CanonicalizePass(ExprTransformer):
-    """
-    Reorders commutative operations deterministically and flattens
-    associative operations where applicable to enable caching/hashing.
-    """
-
     def visit_Add(self, expr: Add) -> Expr:
         left = self.visit(expr.left)
         right = self.visit(expr.right)
@@ -35,7 +29,6 @@ class CanonicalizePass(ExprTransformer):
         left = self.visit(expr.left)
         right = self.visit(expr.right)
 
-        # Sort commutative operands
         if _expr_weight(left) > _expr_weight(right):
             left, right = right, left
 
@@ -43,6 +36,5 @@ class CanonicalizePass(ExprTransformer):
 
 
 def canonicalize(expr: Expr) -> Expr:
-    """Canonicalizes the expression tree."""
     visitor = CanonicalizePass()
     return visitor.visit(expr)

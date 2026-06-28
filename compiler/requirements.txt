@@ -2,4 +2,4 @@ fastapi
 uvicorn
 pydantic
 pytest
-# sympy  # Note: SymPy is no longer a core dependency of the new pipeline, but kept as a comment for optional symbolic work.
+# sympy
