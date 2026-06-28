@@ -1,6 +1,15 @@
+![Uclid](asset/uclidlogo.png)
+
+![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)
+![Rust](https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)
+![WebGPU](https://img.shields.io/badge/WebGPU-WGSL-FF6B35)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Status](https://img.shields.io/badge/status-alpha-orange)
+
 # Uclid
 
-A math-physics-chemistry compiler (Preety Weird Right...!?!? )..Yes because i am working on it on that time when my mind is mostly weird..
+A math-physics-chemistry compiler..Yes because i am working on it on that time when my mind is mostly weird..
 
 In Uclid, there are no polygons or pre-built models. Everything—the ground you walk on, the shapes you see, and the forces that move you—is defined by mathematical equations you type in real time.
 
