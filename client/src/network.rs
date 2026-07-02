@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum ServerMessage {
     Error { detail: String },
@@ -9,7 +9,7 @@ pub enum ServerMessage {
     MotionGenerated { clip: serde_json::Value },
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct JobUpdateData {
     pub id: String,
     pub job_type: String,

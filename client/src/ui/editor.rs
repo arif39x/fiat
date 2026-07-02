@@ -1,5 +1,6 @@
+use crate::network::ClientMessage;
 use crate::ui::generation_status::GenerationStatusPanel;
-use crate::ui::prompt_panel::PromptPanel;
+use crate::ui::prompt_panel::{MuseMode, PromptPanel};
 use crate::ui::style::*;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::UnboundedSender;
@@ -39,6 +40,11 @@ pub struct EditorState {
     pub metrics: PerformanceMetrics,
     pub prompt_panel: PromptPanel,
     pub gen_status: GenerationStatusPanel,
+    pub loaded_character: bool,
+    pub loaded_motion: bool,
+    pub character_mesh: Option<serde_json::Value>,
+    pub character_skeleton: Option<serde_json::Value>,
+    pub motion_clip: Option<serde_json::Value>,
 }
 
 impl EditorState {
@@ -53,6 +59,11 @@ impl EditorState {
             metrics: PerformanceMetrics::default(),
             prompt_panel: PromptPanel::new(),
             gen_status: GenerationStatusPanel::new(),
+            loaded_character: false,
+            loaded_motion: false,
+            character_mesh: None,
+            character_skeleton: None,
+            motion_clip: None,
         }
     }
 
@@ -120,7 +131,41 @@ impl EditorState {
             .show(ctx, |_ui| {});
 
         self.prompt_panel.draw(ctx);
+        if self.prompt_panel.take_generate() {
+            self.send_generate_request();
+        }
         self.gen_status.draw(ctx);
+    }
+
+    fn send_generate_request(&mut self) {
+        let job_type = match self.prompt_panel.mode {
+            MuseMode::TextToCharacter => "text_to_mesh",
+            MuseMode::TextToMotion => "text_to_motion",
+            MuseMode::PoseStaging => "pose_interpolation",
+            MuseMode::StyleTransfer => "style_transfer",
+            MuseMode::Retarget => "retarget",
+        };
+        let mut params = serde_json::json!({
+            "prompt": self.prompt_panel.prompt,
+        });
+        if let Some(seed) = self.prompt_panel.seed {
+            params["seed"] = serde_json::json!(seed);
+        }
+        if self.prompt_panel.mode == MuseMode::StyleTransfer {
+            params["style_prompt"] = serde_json::json!(self.prompt_panel.style_prompt);
+        }
+        let msg = ClientMessage {
+            job_request: Some(crate::network::JobRequest {
+                job_type: job_type.to_string(),
+                params,
+            }),
+        };
+        let serialized = serde_json::to_string(&msg).expect("Failed to serialize ClientMessage");
+        let guard = self.ws_tx.lock().expect("ws_tx lock poisoned");
+        if let Some(tx) = guard.as_ref() {
+            let _ = tx.send(serialized);
+        }
+        self.push_log(LogLevel::Info, &format!("Sent generate request: {}", job_type));
     }
 
     pub fn push_log(&mut self, level: LogLevel, msg: &str) {

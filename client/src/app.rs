@@ -14,21 +14,21 @@ use crate::ui::{EditorState, LogLevel};
 
 pub async fn run() {
     env_logger::init();
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
     event_loop.set_control_flow(ControlFlow::Poll);
 
     let window = Arc::new(
         WindowBuilder::new()
             .with_title("Muse — AI Character & Animation Studio")
             .build(&event_loop)
-            .unwrap(),
+            .expect("Failed to create window"),
     );
 
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
         ..Default::default()
     });
-    let surface = instance.create_surface(window.clone()).unwrap();
+    let surface = instance.create_surface(window.clone()).expect("Failed to create surface");
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
@@ -36,7 +36,7 @@ pub async fn run() {
             force_fallback_adapter: false,
         })
         .await
-        .unwrap();
+        .expect("Failed to request adapter");
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
@@ -47,7 +47,7 @@ pub async fn run() {
             None,
         )
         .await
-        .unwrap();
+        .expect("Failed to request device");
 
     let surface_caps = surface.get_capabilities(&adapter);
     let surface_format = surface_caps
@@ -87,43 +87,53 @@ pub async fn run() {
     let log_queue = Arc::new(Mutex::new(Vec::<(LogLevel, String)>::new()));
     let log_queue_clone = log_queue.clone();
 
+    let state_queue = Arc::new(Mutex::new(Vec::<ServerMessage>::new()));
+    let state_queue_clone = state_queue.clone();
+
     std::thread::spawn(move || {
-        let rt = Runtime::new().unwrap();
+        let rt = Runtime::new().expect("Failed to create Tokio runtime");
         rt.block_on(async {
             loop {
-                match connect_async("ws://127.0.0.1:8080/ws").await {
+                match connect_async("ws://127.0.0.1:8081/ws").await {
                     Ok((ws_stream, _)) => {
-                        log_queue_clone
-                            .lock()
-                            .unwrap()
-                            .push((LogLevel::Info, "[WS] connected".to_string()));
+                        {
+                            let mut guard = log_queue_clone.lock().expect("log queue lock poisoned");
+                            guard.push((LogLevel::Info, "[WS] connected".to_string()));
+                        }
                         let (mut write, mut read) = ws_stream.split();
 
+                        let log_queue_clone2 = log_queue_clone.clone();
+                        let state_queue_clone2 = state_queue_clone.clone();
                         let read_task = async {
                             while let Some(msg) = read.next().await {
                                 if let Ok(Message::Text(text)) = msg {
                                     match serde_json::from_str::<ServerMessage>(&text) {
-                                        Ok(msg_enum) => match msg_enum {
-                                            ServerMessage::Error { detail } => {
-                                                log_queue_clone.lock().unwrap().push((
-                                                    LogLevel::Err,
-                                                    format!("Server: {}", detail),
-                                                ));
+                                        Ok(msg_enum) => {
+                                            let mut q = state_queue_clone2.lock().expect("state queue lock poisoned");
+                                            match &msg_enum {
+                                                ServerMessage::Error { detail } => {
+                                                    let mut guard = log_queue_clone2.lock().expect("log queue lock poisoned");
+                                                    guard.push((
+                                                        LogLevel::Err,
+                                                        format!("Server: {}", detail),
+                                                    ));
+                                                }
+                                                _ => {}
                                             }
-                                            ServerMessage::JobUpdate { .. } => {}
-                                            ServerMessage::MeshGenerated { .. } => {}
-                                            ServerMessage::MotionGenerated { .. } => {}
-                                        },
+                                            q.push(msg_enum);
+                                        }
                                         Err(_) => {}
                                     }
                                 }
                             }
                         };
 
+                        let log_queue_clone3 = log_queue_clone.clone();
                         let write_task = async {
                             while let Some(to_send) = rx.recv().await {
                                 if let Err(e) = write.send(Message::Text(to_send)).await {
-                                    log_queue_clone.lock().unwrap().push((
+                                    let mut guard = log_queue_clone3.lock().expect("log queue lock poisoned");
+                                    guard.push((
                                         LogLevel::Err,
                                         format!("[WS] send error: {}", e),
                                     ));
@@ -138,10 +148,10 @@ pub async fn run() {
                         }
                     }
                     Err(e) => {
-                        log_queue_clone
-                            .lock()
-                            .unwrap()
-                            .push((LogLevel::Warn, format!("[WS] connection failed: {}", e)));
+                        {
+                            let mut guard = log_queue_clone.lock().expect("log queue lock poisoned");
+                            guard.push((LogLevel::Warn, format!("[WS] connection failed: {}", e)));
+                        }
                         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                     }
                 }
@@ -184,9 +194,38 @@ pub async fn run() {
                         editor.metrics.fps = fps;
 
                         {
-                            let mut logs = log_queue.lock().unwrap();
+                            let mut logs = log_queue.lock().expect("log queue lock poisoned");
                             for (lvl, l) in logs.drain(..) {
                                 editor.push_log(lvl, &l);
+                            }
+                        }
+
+                        {
+                            let mut updates = state_queue.lock().expect("state queue lock poisoned");
+                            for msg in updates.drain(..) {
+                                match msg {
+                                    ServerMessage::JobUpdate { job } => {
+                                        match job.status.as_str() {
+                                            "queued" => editor.gen_status.add_job(job.id.clone(), job.job_type.clone()),
+                                            "running" => editor.gen_status.update_progress(&job.id, job.progress as f32),
+                                            "completed" => editor.gen_status.complete(&job.id),
+                                            "failed" => editor.gen_status.fail(&job.id, job.error.unwrap_or_default()),
+                                            _ => {}
+                                        }
+                                    }
+                                    ServerMessage::MeshGenerated { mesh, skeleton, clip: _ } => {
+                                        editor.loaded_character = true;
+                                        editor.character_mesh = Some(mesh);
+                                        editor.character_skeleton = Some(skeleton);
+                                        editor.push_log(LogLevel::Ok, "Character loaded");
+                                    }
+                                    ServerMessage::MotionGenerated { clip } => {
+                                        editor.loaded_motion = true;
+                                        editor.motion_clip = Some(clip);
+                                        editor.push_log(LogLevel::Ok, "Motion loaded");
+                                    }
+                                    ServerMessage::Error { .. } => {}
+                                }
                             }
                         }
 

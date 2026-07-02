@@ -29,7 +29,7 @@ class Skeleton:
         for i, j in enumerate(self.joints):
             if j.name == name:
                 return i
-            return -1
+        return -1
 
     def parent_indices(self) -> List[int]:
         return [j.parent_index for j in self.joints]
@@ -38,7 +38,7 @@ class Skeleton:
         for i, j in enumerate(self.joints):
             if j.parent_index < 0:
                 return i
-            return 0
+        return 0
 
     def validate(self) -> List[str]:
         errors = []

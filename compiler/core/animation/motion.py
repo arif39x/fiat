@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
+import math
+
 from .math import Quaternion
 from .skeleton import Pose, Skeleton
 

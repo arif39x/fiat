@@ -1,6 +1,7 @@
+import json
 from typing import Any, Dict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from core.jobs import JobQueue
@@ -11,14 +12,40 @@ from core.animation.skeleton import Skeleton
 
 app = FastAPI()
 
-
-class JobRequest(BaseModel):
-    job_type: str
-    params: Dict[str, Any]
+active_connections: list[WebSocket] = []
 
 
-job_queue = JobQueue()
+async def progress_callback(job_id: str, progress: float, message: str | None):
+    for ws in active_connections:
+        await ws.send_json({
+            "type": "JobUpdate",
+            "job": {"id": job_id, "progress": progress, "message": message},
+        })
+
+
+job_queue = JobQueue(progress_callback=progress_callback)
 model_registry = get_default_registry()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    active_connections.append(ws)
+    try:
+        while True:
+            data = await ws.receive_text()
+            msg = json.loads(data)
+            job_request = msg.get("job_request")
+            if job_request is None:
+                await ws.send_json({"type": "Error", "detail": "Missing job_request"})
+                continue
+            job_id = await job_queue.enqueue(job_request["job_type"], job_request["params"])
+            await ws.send_json({
+                "type": "JobUpdate",
+                "job": {"id": job_id, "status": "queued"},
+            })
+    except WebSocketDisconnect:
+        active_connections.remove(ws)
 
 
 @app.post("/jobs")
