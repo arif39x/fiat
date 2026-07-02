@@ -9,8 +9,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-use crate::network::{ServerMessage, StateUniform};
-use crate::renderer::Renderer;
+use crate::network::ServerMessage;
 use crate::ui::{EditorState, LogLevel};
 
 pub async fn run() {
@@ -20,11 +19,56 @@ pub async fn run() {
 
     let window = Arc::new(
         WindowBuilder::new()
-            .with_title("Uclid")
+            .with_title("Muse — AI Character & Animation Studio")
             .build(&event_loop)
             .unwrap(),
     );
-    let mut renderer = Renderer::new(window.clone()).await;
+
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::all(),
+        ..Default::default()
+    });
+    let surface = instance.create_surface(window.clone()).unwrap();
+    let adapter = instance
+        .request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::default(),
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
+        })
+        .await
+        .unwrap();
+    let (device, queue) = adapter
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    let surface_caps = surface.get_capabilities(&adapter);
+    let surface_format = surface_caps
+        .formats
+        .iter()
+        .copied()
+        .filter(|f| f.is_srgb())
+        .next()
+        .unwrap_or(surface_caps.formats[0]);
+    let size = window.inner_size();
+    let mut config = wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        format: surface_format,
+        width: size.width,
+        height: size.height,
+        present_mode: surface_caps.present_modes[0],
+        alpha_mode: surface_caps.alpha_modes[0],
+        view_formats: vec![],
+        desired_maximum_frame_latency: 2,
+    };
+    surface.configure(&device, &config);
 
     let mut egui_winit = egui_winit::State::new(
         egui::Context::default(),
@@ -34,17 +78,12 @@ pub async fn run() {
         None,
     );
     let mut egui_renderer =
-        egui_wgpu::Renderer::new(&renderer.device, renderer.config.format, None, 1);
-
-    let state = Arc::new(Mutex::new(StateUniform::default()));
-    let state_clone = state.clone();
+        egui_wgpu::Renderer::new(&device, config.format, None, 1);
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
     let ws_tx = Arc::new(Mutex::new(Some(tx)));
     let mut editor = EditorState::new(ws_tx.clone());
 
-    let new_wgsl = Arc::new(Mutex::new(None::<String>));
-    let new_wgsl_clone = new_wgsl.clone();
     let log_queue = Arc::new(Mutex::new(Vec::<(LogLevel, String)>::new()));
     let log_queue_clone = log_queue.clone();
 
@@ -65,31 +104,15 @@ pub async fn run() {
                                 if let Ok(Message::Text(text)) = msg {
                                     match serde_json::from_str::<ServerMessage>(&text) {
                                         Ok(msg_enum) => match msg_enum {
-                                            ServerMessage::PhysicsState { x, y, z } => {
-                                                let mut lock = state_clone.lock().unwrap();
-                                                let count = x.len().min(64);
-                                                lock.count = count as u32;
-                                                for i in 0..count {
-                                                    lock.entities[i][0] = x[i];
-                                                    lock.entities[i][1] = y[i];
-                                                    lock.entities[i][2] = z[i];
-                                                    lock.entities[i][3] = 0.0;
-                                                }
-                                            }
-                                            ServerMessage::ShaderUpdate { wgsl } => {
-                                                log_queue_clone.lock().unwrap().push((
-                                                    LogLevel::Ok,
-                                                    "shader update received".to_string(),
-                                                ));
-                                                *new_wgsl_clone.lock().unwrap() = Some(wgsl);
-                                            }
                                             ServerMessage::Error { detail } => {
                                                 log_queue_clone.lock().unwrap().push((
                                                     LogLevel::Err,
-                                                    format!("Compiler: {}", detail),
+                                                    format!("Server: {}", detail),
                                                 ));
-                                                *new_wgsl_clone.lock().unwrap() = None;
                                             }
+                                            ServerMessage::JobUpdate { .. } => {}
+                                            ServerMessage::MeshGenerated { .. } => {}
+                                            ServerMessage::MotionGenerated { .. } => {}
                                         },
                                         Err(_) => {}
                                     }
@@ -145,67 +168,29 @@ pub async fn run() {
                     WindowEvent::CloseRequested => elwt.exit(),
                     WindowEvent::Resized(physical_size) => {
                         if physical_size.width > 0 && physical_size.height > 0 {
-                            renderer.config.width = physical_size.width;
-                            renderer.config.height = physical_size.height;
-                            renderer.surface.configure(&renderer.device, &renderer.config);
+                            config.width = physical_size.width;
+                            config.height = physical_size.height;
+                            surface.configure(&device, &config);
                         }
                     }
                     WindowEvent::RedrawRequested => {
                         frame_count += 1;
                         let now = std::time::Instant::now();
                         if now.duration_since(fps_timer).as_secs_f32() >= 1.0 {
-                            fps = frame_count as f32
-                                / now.duration_since(fps_timer).as_secs_f32();
+                            fps = frame_count as f32 / now.duration_since(fps_timer).as_secs_f32();
                             frame_count = 0;
                             fps_timer = now;
                         }
                         editor.metrics.fps = fps;
 
-                        if let Some(wgsl) = new_wgsl.lock().unwrap().take() {
-                            renderer.update_shader(&wgsl);
-                            editor.push_log(LogLevel::Ok, "pipeline updated");
-                            editor.finish_compiling();
-                        }
-
                         {
                             let mut logs = log_queue.lock().unwrap();
                             for (lvl, l) in logs.drain(..) {
-                                if let LogLevel::Err = lvl {
-                                    editor.error_msg = Some(l.clone());
-                                    editor.finish_compiling();
-                                } else if let LogLevel::Ok = lvl {
-                                    editor.error_msg = None;
-                                }
                                 editor.push_log(lvl, &l);
                             }
                         }
 
-                        let uniform = *state.lock().unwrap();
-                        renderer
-                            .queue
-                            .write_buffer(&renderer.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]));
-
-                        editor.uniforms = vec![
-                            ("state.count".to_string(), format!("{}", uniform.count)),
-                            (
-                                "resolution".to_string(),
-                                format!("{}x{}", renderer.config.width, renderer.config.height),
-                            ),
-                            ("entities".to_string(), format!("{}", uniform.count)),
-                        ];
-                        if uniform.count > 0 {
-                            editor.uniforms.push((
-                                "state.entities[0]".to_string(),
-                                format!(
-                                    "({:.2}, {:.2}, {:.2})",
-                                    uniform.entities[0][0],
-                                    uniform.entities[0][1],
-                                    uniform.entities[0][2]
-                                ),
-                            ));
-                        }
-
-                        let output = match renderer.surface.get_current_texture() {
+                        let output = match surface.get_current_texture() {
                             Ok(output) => output,
                             Err(wgpu::SurfaceError::Outdated) => return,
                             Err(e) => {
@@ -225,24 +210,24 @@ pub async fn run() {
                             .egui_ctx()
                             .tessellate(full_output.shapes, full_output.pixels_per_point);
 
-                        let mut encoder = renderer.device.create_command_encoder(
+                        let mut encoder = device.create_command_encoder(
                             &wgpu::CommandEncoderDescriptor {
                                 label: Some("Render Encoder"),
                             },
                         );
 
                         let screen_descriptor = egui_wgpu::ScreenDescriptor {
-                            size_in_pixels: [renderer.config.width, renderer.config.height],
+                            size_in_pixels: [config.width, config.height],
                             pixels_per_point: window.scale_factor() as f32,
                         };
 
                         for (id, delta) in &full_output.textures_delta.set {
                             egui_renderer
-                                .update_texture(&renderer.device, &renderer.queue, *id, delta);
+                                .update_texture(&device, &queue, *id, delta);
                         }
                         egui_renderer.update_buffers(
-                            &renderer.device,
-                            &renderer.queue,
+                            &device,
+                            &queue,
                             &mut encoder,
                             &paint_jobs,
                             &screen_descriptor,
@@ -267,10 +252,6 @@ pub async fn run() {
                                     occlusion_query_set: None,
                                 });
 
-                            render_pass.set_pipeline(&renderer.render_pipeline);
-                            render_pass.set_bind_group(0, &renderer.bind_group, &[]);
-                            render_pass.draw(0..3, 0..1);
-
                             egui_renderer.render(&mut render_pass, &paint_jobs, &screen_descriptor);
                         }
 
@@ -278,9 +259,7 @@ pub async fn run() {
                             egui_renderer.free_texture(id);
                         }
 
-                        renderer
-                            .queue
-                            .submit(std::iter::once(encoder.finish()));
+                        queue.submit(std::iter::once(encoder.finish()));
                         output.present();
                     }
                     _ => {}

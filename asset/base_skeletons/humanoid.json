@@ -1,0 +1,185 @@
+{
+  "name": "humanoid",
+  "joints": [
+    {
+      "name": "root",
+      "parent_index": -1,
+      "local_transform": {
+        "translation": [0.0, 0.0, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "hips",
+      "parent_index": 0,
+      "local_transform": {
+        "translation": [0.0, 0.9, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "spine",
+      "parent_index": 1,
+      "local_transform": {
+        "translation": [0.0, 0.15, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "chest",
+      "parent_index": 2,
+      "local_transform": {
+        "translation": [0.0, 0.15, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "neck",
+      "parent_index": 3,
+      "local_transform": {
+        "translation": [0.0, 0.2, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "head",
+      "parent_index": 4,
+      "local_transform": {
+        "translation": [0.0, 0.1, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_shoulder",
+      "parent_index": 3,
+      "local_transform": {
+        "translation": [-0.2, 0.1, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_upper_arm",
+      "parent_index": 6,
+      "local_transform": {
+        "translation": [-0.0, -0.3, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_lower_arm",
+      "parent_index": 7,
+      "local_transform": {
+        "translation": [-0.0, -0.3, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_hand",
+      "parent_index": 8,
+      "local_transform": {
+        "translation": [-0.0, -0.15, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_shoulder",
+      "parent_index": 3,
+      "local_transform": {
+        "translation": [0.2, 0.1, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_upper_arm",
+      "parent_index": 10,
+      "local_transform": {
+        "translation": [0.0, -0.3, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_lower_arm",
+      "parent_index": 11,
+      "local_transform": {
+        "translation": [0.0, -0.3, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_hand",
+      "parent_index": 12,
+      "local_transform": {
+        "translation": [0.0, -0.15, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_upper_leg",
+      "parent_index": 1,
+      "local_transform": {
+        "translation": [-0.1, -0.0, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_lower_leg",
+      "parent_index": 14,
+      "local_transform": {
+        "translation": [-0.0, -0.4, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "left_foot",
+      "parent_index": 15,
+      "local_transform": {
+        "translation": [-0.0, -0.4, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_upper_leg",
+      "parent_index": 1,
+      "local_transform": {
+        "translation": [0.1, -0.0, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_lower_leg",
+      "parent_index": 17,
+      "local_transform": {
+        "translation": [0.0, -0.4, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    },
+    {
+      "name": "right_foot",
+      "parent_index": 18,
+      "local_transform": {
+        "translation": [0.0, -0.4, 0.0],
+        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+        "scale": [1.0, 1.0, 1.0]
+      }
+    }
+  ]
+}

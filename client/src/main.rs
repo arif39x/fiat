@@ -1,6 +1,8 @@
+mod animation;
 mod app;
+mod core;
 mod network;
-mod renderer;
+mod render;
 mod ui;
 
 fn main() {
