@@ -28,7 +28,7 @@ pub async fn run() {
 
     let window = Arc::new(
         WindowBuilder::new()
-            .with_title("Muse — AI Character & Animation Studio")
+            .with_title("Fiatra — AI Character & Animation Studio")
             .build(&event_loop)
             .expect("Failed to create window"),
     );
@@ -313,10 +313,6 @@ pub async fn run() {
                     prev_mouse_pos = None;
                     mouse_pressed = false;
                     right_mouse_pressed = false;
-                }
-
-                if consumed {
-                    return;
                 }
 
                 match event {

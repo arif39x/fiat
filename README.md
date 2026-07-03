@@ -1,10 +1,17 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="asset/logo.jpg">
+  <img alt="Fiatra logo" src="asset/logo.jpg" width="160">
+</picture>
+
+# Fiatra
+
 ![Rust](https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)
 ![WebGPU](https://img.shields.io/badge/WebGPU-WGSL-FF6B35)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 
-**Muse** is an AI Character & Animation Studio — a desktop application that takes text prompts and produces rigged, animated, exportable 3D characters, all with a real-time WGPU preview.
+**Fiatra** is an AI Character & Animation Studio — a desktop application that takes text prompts and produces rigged, animated, exportable 3D characters, all with a real-time WGPU preview.
 
 ---
 
@@ -14,27 +21,35 @@
 2. **Text-to-Motion** — prompt → BVH/animation clip on the character's skeleton
 3. **AI Pose Staging** — two hand-set poses + prompt → generated in-between frames
 4. **Style Transfer** — existing animation + style prompt → restyled animation
-5. **Auto-Retarget** — external animation (Mixamo/asset-store) → adapted to Muse's skeleton
+5. **Auto-Retarget** — external animation (Mixamo/asset-store) → adapted to Fiatra's skeleton
 6. **Live Preview + Export** — real-time WGPU viewport with egui controls; export to FBX/GLB/ONNX
+
+---
+
+![Fiatra GUI](asset/fiatrafirstgui.png)
 
 ---
 
 ## Architecture
 
 ```
-muse/
+fiat/
 ├── client/              # Rust / WGPU desktop app
+│   ├── src/app.rs       # Application state, event loop, WGPU + egui setup
 │   ├── src/core/        # Skeleton, math, ECS, validation
 │   ├── src/animation/   # Playback, blending, IK, retarget
 │   ├── src/render/      # Skinned mesh, PBR, WGSL shaders, export
-│   └── src/ui/          # egui panels (prompt, timeline, generation status)
+│   ├── src/network.rs   # WebSocket client
+│   └── src/ui/          # egui panels (editor, chat, scene, inspector, toolbar, gen status)
 ├── compiler/            # Python / FastAPI backend
 │   ├── api.py           # Generation and job endpoints
 │   └── core/
 │       ├── animation/   # Skeleton, motion, retarget, BVH import
-│       ├── ml/          # Model orchestration, pose interpolation
+│       ├── ml/          # Model orchestration, pose interpolation, text-to-mesh/motion
+│       ├── llm/         # LLM router for chat
+│       ├── executors/   # Job executors
 │       └── jobs.py      # Async job queue with progress streaming
-├── asset/               # Base skeletons, bone maps, style library
+├── asset/               # Base skeletons, bone maps, style library (populated on first run)
 ├── start_universe.sh    # Launch script
 └── README.md
 ```
@@ -49,10 +64,10 @@ muse/
 # Set up the compiler
 cd compiler
 python3 -m venv venv && source venv/bin/activate
-pip install fastapi uvicorn pydantic pytest
+pip install -r requirements.txt
 cd ..
 
-# Launch Muse
+# Launch Fiatra
 ./start_universe.sh
 ```
 

@@ -730,6 +730,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
+name = "fiat"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "chrono",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "env_logger",
+ "futures-util",
+ "log",
+ "pollster",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "uuid",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1387,28 +1409,6 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "muse"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "chrono",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "env_logger",
- "futures-util",
- "log",
- "pollster",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "uuid",
- "wgpu",
- "winit",
 ]
 
 [[package]]

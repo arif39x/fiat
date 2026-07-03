@@ -21,6 +21,7 @@ struct MaterialRaw {
     metallic: f32,
     roughness: f32,
     ambient_occlusion: f32,
+    _padding: f32,
 }
 
 #[repr(C)]
@@ -29,7 +30,9 @@ struct LightRaw {
     direction: [f32; 3],
     padding: f32,
     color: [f32; 3],
+    _gap: f32,
     ambient: [f32; 3],
+    _padding: f32,
 }
 
 pub struct StaticMeshGpu {
@@ -78,7 +81,9 @@ impl StaticRenderer {
             direction: [-0.5, -0.8, -0.3],
             padding: 0.0,
             color: [1.0, 0.95, 0.9],
+            _gap: 0.0,
             ambient: [0.06, 0.06, 0.08],
+            _padding: 0.0,
         };
         let light_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("static_light"),
@@ -229,6 +234,7 @@ impl StaticRenderer {
             metallic,
             roughness,
             ambient_occlusion: 1.0,
+            _padding: 0.0,
         };
         let material_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("static_mat"),

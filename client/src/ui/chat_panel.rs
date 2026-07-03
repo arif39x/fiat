@@ -40,15 +40,15 @@ impl ChatPanel {
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
-        egui::Window::new("Chat")
-            .id(egui::Id::new("chat_panel"))
-            .default_width(360.0)
-            .default_height(400.0)
-            .collapsible(true)
-            .resizable(true)
+        egui::TopBottomPanel::bottom("chat_bottom_panel")
+            .frame(Frame::none().fill(BG_CARD))
+            .height_range(200.0..=200.0)
             .show(ctx, |ui| {
+                let max_msg_height = (ui.available_height() - 60.0).max(40.0);
                 ScrollArea::vertical()
+                    .id_source("chat_messages")
                     .stick_to_bottom(true)
+                    .max_height(max_msg_height)
                     .show(ui, |ui| {
                         ui.style_mut().spacing.item_spacing.y = 4.0;
                         for msg in &self.messages {
@@ -70,7 +70,7 @@ impl ChatPanel {
                                 }
                                 MessageRole::Assistant => {
                                     Frame::none()
-                                        .fill(BG_CARD)
+                                        .fill(BG_SIDEBAR)
                                         .rounding(egui::Rounding::same(6.0))
                                         .inner_margin(Margin::symmetric(8.0, 6.0))
                                         .show(ui, |ui| {
@@ -99,10 +99,7 @@ impl ChatPanel {
                                 }
                             }
                         }
-                        ui.add_space(4.0);
                     });
-
-                ui.add_space(4.0);
 
                 if self.processing {
                     ui.horizontal_centered(|ui| {
@@ -113,30 +110,30 @@ impl ChatPanel {
                         );
                     });
                 } else {
-                    let resp = TextEdit::multiline(&mut self.input)
-                        .font(FontId::monospace(12.0))
-                        .desired_rows(2)
-                        .desired_width(f32::INFINITY)
-                        .hint_text("Describe what to create...")
-                        .show(ui);
-
-                    let enter_pressed = resp.response.lost_focus()
-                        && ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.ctrl);
-
                     ui.horizontal(|ui| {
-                        if ui
+                        let resp = TextEdit::multiline(&mut self.input)
+                            .font(FontId::monospace(13.0))
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(2)
+                            .hint_text("Describe what to create...")
+                            .show(ui);
+
+                        let enter_send = ui.input(|i| i.key_pressed(egui::Key::Enter))
+                            && !ui.input(|i| i.modifiers.shift);
+
+                        let send_clicked = ui
                             .add_sized(
-                                [ui.available_width(), 28.0],
+                                [72.0, 48.0],
                                 egui::Button::new(
                                     RichText::new("Send")
-                                        .font(FontId::monospace(11.0))
+                                        .font(FontId::monospace(12.0))
                                         .color(Color32::WHITE),
                                 )
                                 .fill(ACCENT_STRONG),
                             )
-                            .clicked()
-                            || enter_pressed
-                        {
+                            .clicked();
+
+                        if send_clicked || enter_send {
                             self.send_message();
                         }
                     });

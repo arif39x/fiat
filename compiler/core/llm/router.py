@@ -23,7 +23,7 @@ class LLMClient:
     async def chat(self, system: str, messages: List[dict]) -> dict:
         import aiohttp
         payload = {
-            "model": "muse-llm",
+            "model": "fiat-llm",
             "system": system,
             "messages": messages,
             "response_format": {"type": "json_object"},

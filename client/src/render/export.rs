@@ -96,16 +96,34 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
     let jc = skeleton.joint_count();
     let parent_indices: Vec<i32> = skeleton.parent_indices();
 
-    let rest_local: Vec<Transform> = skeleton.joints.iter().map(|j| {
-        Transform {
-            translation: (j.local_transform.translation[0], j.local_transform.translation[1], j.local_transform.translation[2]),
-            rotation: Quaternion { w: j.local_transform.rotation.w, x: j.local_transform.rotation.x, y: j.local_transform.rotation.y, z: j.local_transform.rotation.z },
-            scale: (j.local_transform.scale[0], j.local_transform.scale[1], j.local_transform.scale[2]),
-        }
-    }).collect();
+    let rest_local: Vec<Transform> = skeleton
+        .joints
+        .iter()
+        .map(|j| Transform {
+            translation: (
+                j.local_transform.translation[0],
+                j.local_transform.translation[1],
+                j.local_transform.translation[2],
+            ),
+            rotation: Quaternion {
+                w: j.local_transform.rotation.w,
+                x: j.local_transform.rotation.x,
+                y: j.local_transform.rotation.y,
+                z: j.local_transform.rotation.z,
+            },
+            scale: (
+                j.local_transform.scale[0],
+                j.local_transform.scale[1],
+                j.local_transform.scale[2],
+            ),
+        })
+        .collect();
 
     let rest_global = forward_kinematics(&rest_local, &parent_indices);
-    let inv_bind: Vec<[f32; 16]> = rest_global.iter().map(|t| invert_affine(&t.to_matrix())).collect();
+    let inv_bind: Vec<[f32; 16]> = rest_global
+        .iter()
+        .map(|t| invert_affine(&t.to_matrix()))
+        .collect();
 
     let mut ibm_data = Vec::with_capacity(jc * 64);
     for mtx in &inv_bind {
@@ -118,7 +136,7 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
     let bin_total_with_ibm = ibm_offset + ibm_data.len() as u64;
 
     let mut json = serde_json::json!({
-        "asset": {"version": "2.0", "generator": "muse"},
+        "asset": {"version": "2.0", "generator": "fiat"},
         "scene": 0,
         "scenes": [{"nodes": [0]}],
     });
@@ -138,7 +156,8 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
             "rotation": [r.x, r.y, r.z, r.w],
         });
         if !children.is_empty() {
-            node["children"] = serde_json::json!(children.iter().map(|c| c + 1).collect::<Vec<_>>());
+            node["children"] =
+                serde_json::json!(children.iter().map(|c| c + 1).collect::<Vec<_>>());
         }
         nodes.push(node);
     }
@@ -192,11 +211,14 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
         mesh_node["children"] = serde_json::json!((1..=jc).collect::<Vec<_>>());
     }
     json["nodes"][0]["children"] = serde_json::json!([1u64]);
-    nodes.insert(1, serde_json::json!({
-        "name": "character",
-        "mesh": 0,
-        "skin": 0,
-    }));
+    nodes.insert(
+        1,
+        serde_json::json!({
+            "name": "character",
+            "mesh": 0,
+            "skin": 0,
+        }),
+    );
     json["nodes"] = serde_json::json!(nodes);
 
     let json_str = serde_json::to_string(&json).map_err(|e| format!("JSON serialize: {}", e))?;
@@ -225,7 +247,8 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
 
     let path = Path::new(&params.file_path);
     let mut f = File::create(path).map_err(|e| format!("File create: {}", e))?;
-    f.write_all(&glb).map_err(|e| format!("File write: {}", e))?;
+    f.write_all(&glb)
+        .map_err(|e| format!("File write: {}", e))?;
 
     Ok(())
 }
@@ -235,14 +258,31 @@ fn f32_to_bytes(v: f32) -> [u8; 4] {
 }
 
 fn invert_affine(m: &[f32; 16]) -> [f32; 16] {
-    let r00 = m[0]; let r01 = m[4]; let r02 = m[8];
-    let r10 = m[1]; let r11 = m[5]; let r12 = m[9];
-    let r20 = m[2]; let r21 = m[6]; let r22 = m[10];
-    let t0 = m[3]; let t1 = m[7]; let t2 = m[11];
+    let r00 = m[0];
+    let r01 = m[4];
+    let r02 = m[8];
+    let r10 = m[1];
+    let r11 = m[5];
+    let r12 = m[9];
+    let r20 = m[2];
+    let r21 = m[6];
+    let r22 = m[10];
+    let t0 = m[3];
+    let t1 = m[7];
+    let t2 = m[11];
     [
-        r00, r01, r02, 0.0,
-        r10, r11, r12, 0.0,
-        r20, r21, r22, 0.0,
+        r00,
+        r01,
+        r02,
+        0.0,
+        r10,
+        r11,
+        r12,
+        0.0,
+        r20,
+        r21,
+        r22,
+        0.0,
         -(r00 * t0 + r01 * t1 + r02 * t2),
         -(r10 * t0 + r11 * t1 + r12 * t2),
         -(r20 * t0 + r21 * t1 + r22 * t2),
@@ -261,21 +301,36 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
     let jc = skeleton.joint_count();
     let parent_indices: Vec<i32> = skeleton.parent_indices();
 
-    let rest_local: Vec<Transform> = skeleton.joints.iter().map(|j| {
-        Transform {
-            translation: (j.local_transform.translation[0], j.local_transform.translation[1], j.local_transform.translation[2]),
-            rotation: Quaternion { w: j.local_transform.rotation.w, x: j.local_transform.rotation.x, y: j.local_transform.rotation.y, z: j.local_transform.rotation.z },
-            scale: (j.local_transform.scale[0], j.local_transform.scale[1], j.local_transform.scale[2]),
-        }
-    }).collect();
+    let rest_local: Vec<Transform> = skeleton
+        .joints
+        .iter()
+        .map(|j| Transform {
+            translation: (
+                j.local_transform.translation[0],
+                j.local_transform.translation[1],
+                j.local_transform.translation[2],
+            ),
+            rotation: Quaternion {
+                w: j.local_transform.rotation.w,
+                x: j.local_transform.rotation.x,
+                y: j.local_transform.rotation.y,
+                z: j.local_transform.rotation.z,
+            },
+            scale: (
+                j.local_transform.scale[0],
+                j.local_transform.scale[1],
+                j.local_transform.scale[2],
+            ),
+        })
+        .collect();
     let rest_global = forward_kinematics(&rest_local, &parent_indices);
 
     let mut fbx = String::new();
     fbx.push_str("; FBX 7.4.0 project file\n");
-    fbx.push_str("; Generated by Muse\n");
+    fbx.push_str("; Generated by fiat\n");
 
     fbx_node_header(&mut fbx, "FBXHeaderExtension", &[]);
-    fbx_prop(&mut fbx, "Creator", "Muse", true);
+    fbx_prop(&mut fbx, "Creator", "Fiatra", true);
     fbx_prop_i32(&mut fbx, "FBXVersion", 7400);
     fbx_node_footer(&mut fbx);
 
@@ -284,7 +339,10 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
     for i in 0..n {
         let v = &vertices[i];
         let p = &v["position"];
-        fbx.push_str(&format!("\tGeometry:: {}, \"MeshVertex-{}\", \"\" {{\n", i, i));
+        fbx.push_str(&format!(
+            "\tGeometry:: {}, \"MeshVertex-{}\", \"\" {{\n",
+            i, i
+        ));
         fbx.push_str(&format!("\t\tType: \"Mesh\"\n"));
         fbx.push_str(&format!("\t\tVertices: *{} {{\n", 3));
         fbx.push_str(&format!("\t\t\ta: {},{},{}\n", p[0], p[1], p[2]));
@@ -300,7 +358,9 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
     for (i, v) in vertices.iter().enumerate() {
         let p = &v["position"];
         fbx.push_str(&format!("{},{},{}", p[0], p[1], p[2]));
-        if i < n - 1 { fbx.push_str(","); }
+        if i < n - 1 {
+            fbx.push_str(",");
+        }
     }
     fbx.push_str("\n\t}\n");
 
@@ -311,7 +371,9 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
         let b = indices[i * 3 + 1].as_u64().unwrap_or(0) as i64;
         let c = indices[i * 3 + 2].as_u64().unwrap_or(0) as i64;
         fbx.push_str(&format!("{},{},{}", a, b, -(c + 1)));
-        if i < m / 3 - 1 { fbx.push_str(","); }
+        if i < m / 3 - 1 {
+            fbx.push_str(",");
+        }
     }
     fbx.push_str("\n\t}\n");
 
@@ -326,7 +388,9 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
     for (i, v) in vertices.iter().enumerate() {
         let no = &v["normal"];
         fbx.push_str(&format!("{},{},{}", no[0], no[1], no[2]));
-        if i < n - 1 { fbx.push_str(","); }
+        if i < n - 1 {
+            fbx.push_str(",");
+        }
     }
     fbx.push_str("\n\t\t}\n\t}\n");
 
@@ -341,7 +405,9 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
     for (i, v) in vertices.iter().enumerate() {
         let u = &v["uv"];
         fbx.push_str(&format!("{},{}", u[0], u[1]));
-        if i < n - 1 { fbx.push_str(","); }
+        if i < n - 1 {
+            fbx.push_str(",");
+        }
     }
     fbx.push_str("\n\t\t}\n\t}\n");
 
@@ -361,12 +427,23 @@ pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
         let gp = &rest_global[i];
         let q = gp.rotation;
         let t = gp.translation;
-        fbx.push_str(&format!("\tModel:: {}, \"Model::{}\", \"null\" {{\n", i, skeleton.joints[i].name));
+        fbx.push_str(&format!(
+            "\tModel:: {}, \"Model::{}\", \"null\" {{\n",
+            i, skeleton.joints[i].name
+        ));
         fbx.push_str("\t\tVersion: 232\n");
         fbx.push_str("\t\tProperties70: {\n");
-        fbx.push_str(&format!("\t\t\tP: \"Lcl Translation\", \"Lcl Translation\", \"\", \"A\",{},{},{}\n", t.0, t.1, t.2));
-        fbx.push_str(&format!("\t\t\tP: \"Lcl Rotation\", \"Lcl Rotation\", \"\", \"A\",0,0,0\n"));
-        fbx.push_str(&format!("\t\t\tP: \"Quaternion\", \"Quaternion\", \"\", \"A\",{},{},{},{}\n", q.x, q.y, q.z, q.w));
+        fbx.push_str(&format!(
+            "\t\t\tP: \"Lcl Translation\", \"Lcl Translation\", \"\", \"A\",{},{},{}\n",
+            t.0, t.1, t.2
+        ));
+        fbx.push_str(&format!(
+            "\t\t\tP: \"Lcl Rotation\", \"Lcl Rotation\", \"\", \"A\",0,0,0\n"
+        ));
+        fbx.push_str(&format!(
+            "\t\t\tP: \"Quaternion\", \"Quaternion\", \"\", \"A\",{},{},{},{}\n",
+            q.x, q.y, q.z, q.w
+        ));
         fbx.push_str("\t\t}\n");
         fbx.push_str("\t}\n");
     }

@@ -64,7 +64,7 @@ impl EditorState {
             logs: vec![LogEntry {
                 timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
                 level: LogLevel::Info,
-                message: String::from("Muse initialized"),
+                message: String::from("Fiatra initialized"),
             }],
             ws_tx,
             metrics: PerformanceMetrics::default(),
@@ -110,7 +110,7 @@ impl EditorState {
             .height_range(44.0..=44.0)
             .show(ctx, |ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.label(RichText::new("Muse").strong().size(14.0).color(Color32::WHITE));
+                    ui.label(RichText::new("Fiatra").strong().size(14.0).color(Color32::WHITE));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let fps_color = if self.metrics.fps > 30.0 { GREEN } else if self.metrics.fps > 15.0 { YELLOW } else { RED };
                         ui.label(RichText::new(format!("{:.0} FPS", self.metrics.fps)).font(FontId::monospace(11.0)).color(fps_color));
@@ -118,12 +118,19 @@ impl EditorState {
                 });
             });
 
+        self.chat.draw(ctx);
+
         SidePanel::right("right_panel")
             .frame(Frame::none().fill(BG_SIDEBAR).inner_margin(Margin::ZERO))
-            .resizable(true)
             .default_width(280.0)
-            .min_width(180.0)
+            .min_width(280.0)
             .show(ctx, |ui| {
+                Frame::none()
+                    .fill(BG_CARD)
+                    .inner_margin(Margin::symmetric(12.0, 8.0))
+                    .show(ui, |ui| {
+                        ui.label(RichText::new("Log Infos").strong().size(13.0).color(TEXT));
+                    });
                 ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
                     ui.style_mut().spacing.item_spacing.y = 0.0;
                     for log in &self.logs {
@@ -140,8 +147,8 @@ impl EditorState {
                                 ui.horizontal(|ui| {
                                     ui.label(RichText::new(&log.timestamp).font(FontId::monospace(9.0)).color(TEXT_MUTED));
                                     ui.label(RichText::new(tag).font(FontId::monospace(9.0)).color(color));
-                                    ui.label(RichText::new(&log.message).font(FontId::monospace(11.0)).color(TEXT));
                                 });
+                                ui.label(RichText::new(&log.message).font(FontId::monospace(11.0)).color(TEXT));
                             });
                     }
                 });
@@ -161,7 +168,6 @@ impl EditorState {
             self.chat.send_quick_command(&cmd);
         }
 
-        self.chat.draw(ctx);
         self.gen_status.draw(ctx);
         self.draw_export(ctx);
     }
