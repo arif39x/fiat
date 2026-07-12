@@ -80,6 +80,8 @@ class LLMRouter:
         if user_message:
             self.message_history.append({"role": "user", "content": user_message})
 
+        self.message_history = self.message_history[-20:]
+
         scene_context = self._format_scene_context()
         full_system = self.system_prompt.replace("{scene_context}", scene_context)
 
@@ -166,7 +168,7 @@ class LLMRouter:
         if not self.scene.entities:
             return "The scene is empty."
         lines = []
-        for eid, entity in self.scene.entities.items():
+        for eid, entity in list(self.scene.entities.items())[:20]:
             data = entity.data
             if isinstance(data, dict):
                 pos = data.get("position", data.get("translation", "?"))
@@ -174,4 +176,7 @@ class LLMRouter:
                 lines.append(f"- Entity {eid}: type={entity.entity_type}, label='{entity.label}', pos={pos}, color={color}")
             else:
                 lines.append(f"- Entity {eid}: type={entity.entity_type}, label='{entity.label}'")
+        remaining = len(self.scene.entities) - 20
+        if remaining > 0:
+            lines.append(f"... and {remaining} more entities")
         return "\n".join(lines)
