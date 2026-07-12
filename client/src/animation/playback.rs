@@ -50,10 +50,23 @@ impl MotionClip {
         if d <= 0.0 {
             return Pose::new(&self.skeleton);
         }
+        let n = self.frame_count();
+        if n < 2 {
+            let idx = 0;
+            return Pose {
+                skeleton: self.skeleton.clone(),
+                joint_rotations: self.frames[idx].clone(),
+                root_translation: self
+                    .root_positions
+                    .get(idx)
+                    .copied()
+                    .unwrap_or((0.0, 0.0, 0.0)),
+            };
+        }
         let normalized = t / d;
-        let idx = (normalized * (self.frame_count() - 1) as f32) as usize;
-        let frac = normalized * (self.frame_count() - 1) as f32 - idx as f32;
-        let idx = idx.min(self.frame_count().saturating_sub(2));
+        let idx = (normalized * (n - 1) as f32) as usize;
+        let frac = normalized * (n - 1) as f32 - idx as f32;
+        let idx = idx.min(n - 2);
         let a = &self.frames[idx];
         let b = &self.frames[idx + 1];
         let rotations: Vec<Quaternion> = a
