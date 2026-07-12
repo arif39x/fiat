@@ -45,6 +45,26 @@ impl Toolbar {
                 }
 
                 ui.separator();
+                ui.label("Scene");
+                if ui.button("Save Scene").clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("Scene", &["json"])
+                        .set_file_name("scene.json")
+                        .save_file()
+                    {
+                        let _ = scene.save_to_file(path.to_str().unwrap_or("scene.json"));
+                    }
+                }
+                if ui.button("Load Scene").clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("Scene", &["json"])
+                        .pick_file()
+                    {
+                        let _ = scene.load_from_file(path.to_str().unwrap_or("scene.json"));
+                    }
+                }
+
+                ui.separator();
                 ui.label("Quick Commands");
                 if ui.button("Arrange in Grid").clicked() {
                     quick_command = Some("Arrange all objects in a 3x3 grid".to_string());

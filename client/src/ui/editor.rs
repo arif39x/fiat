@@ -57,6 +57,7 @@ pub struct EditorState {
     pub export_path: String,
     pub export_triggered: bool,
     pub scene_sync_pending: bool,
+    pub pending_texture: Option<(String, Vec<u8>)>,
     pub ws_connected: Arc<AtomicBool>,
 }
 
@@ -87,6 +88,7 @@ impl EditorState {
             export_path: "output/character.glb".to_string(),
             export_triggered: false,
             scene_sync_pending: false,
+            pending_texture: None,
             ws_connected: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -311,6 +313,21 @@ impl EditorState {
                 }
                 "generate_mesh" => {
                     self.scene.world.add(eid, MeshComponent { mesh_data: Some(ed.data.clone()), mesh_type: None });
+                }
+                "generate_texture" => {
+                    if let Some(width) = ed.data.get("width").and_then(|v| v.as_u64()) {
+                        if let Some(height) = ed.data.get("height").and_then(|v| v.as_u64()) {
+                            if let Some(data) = ed.data.get("data").and_then(|v| v.as_array()) {
+                                let mut bytes = Vec::with_capacity(data.len());
+                                for val in data {
+                                    bytes.push(val.as_u64().unwrap_or(255) as u8);
+                                }
+                                if bytes.len() as u64 == width * height * 4 {
+                                    self.pending_texture = Some((ed.label.clone(), bytes));
+                                }
+                            }
+                        }
+                    }
                 }
                 "generate_motion" => {
                     self.scene.world.add(eid, MotionComponent {

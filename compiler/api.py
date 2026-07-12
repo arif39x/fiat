@@ -211,9 +211,114 @@ def _load_bone_maps() -> dict:
 @app.post("/export")
 async def export_asset(params: Dict[str, Any]):
     fmt = params.get("format", "glb")
+    mesh_data = params.get("mesh")
+    skeleton_data = params.get("skeleton")
+    if mesh_data is None:
+        return {"status": "error", "detail": "Missing mesh data"}
+    if fmt == "glb":
+        glb_bytes = _build_glb(mesh_data, skeleton_data)
+        import base64
+        return {
+            "status": "success",
+            "format": "glb",
+            "data": base64.b64encode(glb_bytes).decode("ascii"),
+            "filename": params.get("filename", "export.glb"),
+        }
     return {
-        "status": "success",
+        "status": "error",
         "format": fmt,
         "data": None,
-        "message": f"Export to {fmt} requested",
+        "message": f"Export format {fmt} not supported on server",
     }
+
+
+def _build_glb(mesh: dict, skeleton: Optional[dict] = None) -> bytes:
+    import struct
+    vertices = mesh.get("vertices", [])
+    indices = mesh.get("indices", [])
+    if not vertices or not indices:
+        return b""
+
+    v_count = len(vertices)
+    i_count = len(indices)
+    pos = []
+    nrm = []
+    for v in vertices:
+        p = v.get("position", [0, 0, 0])
+        n = v.get("normal", [0, 0, 1])
+        pos.extend([float(p[0]), float(p[1]), float(p[2])])
+        nrm.extend([float(n[0]), float(n[1]), float(n[2])])
+
+    vert_bytes = struct.pack(f"<{len(pos)}f", *pos)
+    norm_bytes = struct.pack(f"<{len(nrm)}f", *nrm)
+    idx_bytes = struct.pack(f"<{i_count}I", *[int(i) for i in indices])
+
+    VERT_OFF = 0
+    NORM_OFF = len(vert_bytes)
+    IDX_OFF = NORM_OFF + len(norm_bytes)
+    total_len = IDX_OFF + len(idx_bytes)
+    pad = (4 - total_len % 4) % 4
+    total_len += pad
+
+    vertex_count = v_count
+    component_type_float = 5126
+    component_type_uint = 5125
+
+    accessors = [
+        {"componentType": component_type_float, "count": vertex_count, "type": "VEC3", "byteOffset": VERT_OFF},
+        {"componentType": component_type_float, "count": vertex_count, "type": "VEC3", "byteOffset": NORM_OFF},
+        {"componentType": component_type_uint,  "count": i_count,      "type": "SCALAR", "byteOffset": IDX_OFF},
+    ]
+
+    accessor_idx = 0
+    json_model: dict = {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"mesh": 0}],
+        "meshes": [{
+            "primitives": [{
+                "attributes": {
+                    "POSITION": accessor_idx,
+                    "NORMAL": accessor_idx + 1,
+                },
+                "indices": accessor_idx + 2,
+            }]
+        }],
+        "accessors": [],
+        "bufferViews": [],
+        "buffers": [{"byteLength": total_len, "uri": "data:application/octet-stream;base64,"}],
+    }
+
+    for acc in accessors:
+        json_model["accessors"].append({
+            "bufferView": len(json_model["bufferViews"]),
+            "componentType": acc["componentType"],
+            "count": acc["count"],
+            "type": acc["type"],
+            "byteOffset": 0,
+        })
+        json_model["bufferViews"].append({
+            "buffer": 0,
+            "byteOffset": acc["byteOffset"],
+            "byteLength": acc["count"] * (4 if acc["componentType"] == component_type_float else 4),
+        })
+
+    json_str = json.dumps(json_model, separators=(",", ":"))
+    while len(json_str) % 4:
+        json_str += " "
+    json_bytes = json_str.encode("utf-8")
+
+    header = struct.pack("<I", 0x46546C67)
+    header += struct.pack("<I", 2)
+    header += struct.pack("<I", 12 + 8 + len(json_bytes) + 8 + total_len)
+
+    json_chunk_len = struct.pack("<I", len(json_bytes))
+    json_chunk_type = struct.pack("<I", 0x4E4F534A)
+    bin_chunk_len = struct.pack("<I", total_len)
+    bin_chunk_type = struct.pack("<I", 0x004E4942)
+
+    glb = header + json_chunk_len + json_chunk_type + json_bytes
+    glb += bin_chunk_len + bin_chunk_type + vert_bytes + norm_bytes + idx_bytes
+    glb += b"\x00" * pad
+    return glb

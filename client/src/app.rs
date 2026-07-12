@@ -407,6 +407,13 @@ pub async fn run() {
                             }
                         }
 
+                        if let Some((_label, tex_bytes)) = editor.pending_texture.take() {
+                            if !tex_bytes.is_empty() {
+                                skin_renderer.load_texture(&device, &queue, &tex_bytes);
+                                editor.push_log(LogLevel::Ok, "Texture uploaded to GPU");
+                            }
+                        }
+
                         animator.update(dt);
 
                         let input = egui_winit.take_egui_input(&window);

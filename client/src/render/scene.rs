@@ -330,10 +330,13 @@ impl SkinRenderer {
             Ok(img) => img.to_rgba8(),
             Err(_) => return,
         };
-        let dimensions = img.dimensions();
+        self.load_texture_rgba(device, queue, &img, img.dimensions().0, img.dimensions().1);
+    }
+
+    pub fn load_texture_rgba(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, rgba: &[u8], width: u32, height: u32) {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("skin_texture"),
-            size: wgpu::Extent3d { width: dimensions.0, height: dimensions.1, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -343,9 +346,9 @@ impl SkinRenderer {
         });
         queue.write_texture(
             texture.as_image_copy(),
-            &img,
-            wgpu::ImageDataLayout { offset: 0, bytes_per_row: Some(4 * dimensions.0), rows_per_image: Some(dimensions.1) },
-            wgpu::Extent3d { width: dimensions.0, height: dimensions.1, depth_or_array_layers: 1 },
+            rgba,
+            wgpu::ImageDataLayout { offset: 0, bytes_per_row: Some(4 * width), rows_per_image: Some(height) },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
         );
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {

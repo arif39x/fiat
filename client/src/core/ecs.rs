@@ -94,6 +94,14 @@ impl EcsWorld {
         id
     }
 
+    pub fn spawn_with_id(&mut self, id: EntityId) -> EntityId {
+        self.alive.insert(id);
+        if id >= self.next_id {
+            self.next_id = id + 1;
+        }
+        id
+    }
+
     pub fn is_alive(&self, entity: EntityId) -> bool {
         self.alive.contains(&entity)
     }

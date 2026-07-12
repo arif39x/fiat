@@ -69,10 +69,54 @@ fn vs_main(input: VSInput) -> VSOutput {
     return output;
 }
 
+fn distribution_ggx(ndoth: f32, roughness: f32) -> f32 {
+    let a = roughness * roughness;
+    let a2 = a * a;
+    let denom = ndoth * ndoth * (a2 - 1.0) + 1.0;
+    return a2 / (3.14159 * denom * denom);
+}
+
+fn geometry_smith(ndotv: f32, ndotl: f32, roughness: f32) -> f32 {
+    let a = roughness * roughness;
+    let k = (a + 1.0) * (a + 1.0) / 8.0;
+    let g1 = ndotl / (ndotl * (1.0 - k) + k);
+    let g2 = ndotv / (ndotv * (1.0 - k) + k);
+    return g1 * g2;
+}
+
+fn fresnel_schlick(cos_theta: f32, f0: vec3<f32>) -> vec3<f32> {
+    return f0 + (1.0 - f0) * pow(1.0 - cos_theta, 5.0);
+}
+
 @fragment
 fn fs_main(input: VSOutput) -> @location(0) vec4<f32> {
     let tex_color = textureSample(texture, texture_sampler, input.uv).rgb;
-    let ndotl = max(dot(input.normal, normalize(-camera.camera_pos.xyz - input.world_pos)), 0.0);
-    let final_color = tex_color * (0.08 + ndotl * 0.7);
-    return vec4<f32>(final_color * 1.2, 1.0);
+    let n = normalize(input.normal);
+    let v = normalize(camera.camera_pos.xyz - input.world_pos);
+    let l = normalize(-light.direction);
+    let h = normalize(v + l);
+
+    let ndotl = max(dot(n, l), 0.0);
+    let ndotv = max(dot(n, v), 0.0);
+    let ndoth = max(dot(n, h), 0.0);
+    let hdotv = max(dot(h, v), 0.0);
+
+    let roughness = 0.5;
+    let metallic = 0.0;
+    let f0 = mix(vec3<f32>(0.04), tex_color, metallic);
+    let albedo = tex_color * (1.0 - metallic);
+
+    let d = distribution_ggx(ndoth, roughness);
+    let g = geometry_smith(ndotv, ndotl, roughness);
+    let f = fresnel_schlick(hdotv, f0);
+
+    let specular = d * g * f / max(4.0 * ndotv * ndotl, 0.001);
+    let diffuse = albedo / 3.14159;
+
+    let ambient_term = light.ambient * albedo;
+    let diffuse_term = diffuse * light.color * ndotl;
+    let specular_term = specular * light.color * ndotl;
+
+    let final_color = ambient_term + diffuse_term + specular_term;
+    return vec4<f32>(final_color, 1.0);
 }
