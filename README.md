@@ -1,11 +1,11 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="asset/logo.jpg">
-    <img alt="Fiatra logo" src="asset/logo.jpg" width="160">
+    <img alt="initial logo" src="asset/logo.jpg" width="160">
   </picture>
 </p>
 
-<h1 align="center">Fiatra</h1>
+<h1 align="center">initial</h1>
 
 <p align="center">
   <img alt="Rust" src="https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust">
@@ -15,7 +15,7 @@
   <img alt="Status" src="https://img.shields.io/badge/status-alpha-orange">
 </p>
 
-**Fiatra** is an AI Character & Animation Studio — a desktop application that takes text prompts and produces rigged, animated, exportable 3D characters, all with a real-time WGPU preview.
+**initial** is an AI Character & Animation Studio — a desktop application that takes text prompts and produces rigged, animated, exportable 3D characters, all with a real-time WGPU preview.
 
 ---
 
@@ -25,19 +25,19 @@
 2. **Text-to-Motion** — prompt → BVH/animation clip on the character's skeleton
 3. **AI Pose Staging** — two hand-set poses + prompt → generated in-between frames
 4. **Style Transfer** — existing animation + style prompt → restyled animation
-5. **Auto-Retarget** — external animation (Mixamo/asset-store) → adapted to Fiatra's skeleton
+5. **Auto-Retarget** — external animation (Mixamo/asset-store) → adapted to initial's skeleton
 6. **Live Preview + Export** — real-time WGPU viewport with egui controls; export to FBX/GLB/ONNX
 
 ---
 
-![Fiatra GUI](asset/fiatrafirstgui.png)
+![initial GUI](asset/initialfirstgui.png)
 
 ---
 
 ## Architecture
 
 ```
-fiat/
+initial/
 ├── client/              # Rust / WGPU desktop app
 │   ├── src/app.rs       # Application state, event loop, WGPU + egui setup
 │   ├── src/core/        # Skeleton, math, ECS, validation
@@ -71,7 +71,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cd ..
 
-# Launch Fiatra
+# Launch initial
 ./start_universe.sh
 ```
 

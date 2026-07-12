@@ -114,6 +114,25 @@ class Transform:
         return rot
 
 
+def mat4_to_quaternion(m: List[float]) -> Quaternion:
+    m00, m01, m02 = m[0], m[4], m[8]
+    m10, m11, m12 = m[1], m[5], m[9]
+    m20, m21, m22 = m[2], m[6], m[10]
+    trace = m00 + m11 + m22
+    if trace > 0.0:
+        s = 0.5 / math.sqrt(trace + 1.0)
+        return Quaternion(0.25 / s, (m21 - m12) * s, (m02 - m20) * s, (m10 - m01) * s).normalize()
+    elif m00 > m11 and m00 > m22:
+        s = 2.0 * math.sqrt(1.0 + m00 - m11 - m22)
+        return Quaternion((m21 - m12) / s, 0.25 * s, (m01 + m10) / s, (m02 + m20) / s).normalize()
+    elif m11 > m22:
+        s = 2.0 * math.sqrt(1.0 + m11 - m00 - m22)
+        return Quaternion((m02 - m20) / s, (m01 + m10) / s, 0.25 * s, (m12 + m21) / s).normalize()
+    else:
+        s = 2.0 * math.sqrt(1.0 + m22 - m00 - m11)
+        return Quaternion((m10 - m01) / s, (m02 + m20) / s, (m12 + m21) / s, 0.25 * s).normalize()
+
+
 def multiply_mat4(a: List[float], b: List[float]) -> List[float]:
     result = [0.0] * 16
     for i in range(4):
@@ -142,7 +161,7 @@ def forward_kinematics(
             combined = multiply_mat4(parent_mat, local_mat)
             global_transforms[i] = Transform(
                 (combined[3], combined[7], combined[11]),
-                Quaternion.identity(),
+                mat4_to_quaternion(combined),
                 (1.0, 1.0, 1.0),
             )
     return global_transforms

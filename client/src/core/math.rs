@@ -196,6 +196,47 @@ impl Transform {
     }
 }
 
+pub fn mat4_to_quaternion(m: &[f32; 16]) -> Quaternion {
+    let m00 = m[0]; let m01 = m[4]; let m02 = m[8];
+    let m10 = m[1]; let m11 = m[5]; let m12 = m[9];
+    let m20 = m[2]; let m21 = m[6]; let m22 = m[10];
+    let trace = m00 + m11 + m22;
+    if trace > 0.0 {
+        let s = 0.5 / (trace + 1.0).sqrt();
+        Quaternion {
+            w: 0.25 / s,
+            x: (m21 - m12) * s,
+            y: (m02 - m20) * s,
+            z: (m10 - m01) * s,
+        }
+    } else if m00 > m11 && m00 > m22 {
+        let s = 2.0 * (1.0 + m00 - m11 - m22).sqrt();
+        Quaternion {
+            w: (m21 - m12) / s,
+            x: 0.25 * s,
+            y: (m01 + m10) / s,
+            z: (m02 + m20) / s,
+        }
+    } else if m11 > m22 {
+        let s = 2.0 * (1.0 + m11 - m00 - m22).sqrt();
+        Quaternion {
+            w: (m02 - m20) / s,
+            x: (m01 + m10) / s,
+            y: 0.25 * s,
+            z: (m12 + m21) / s,
+        }
+    } else {
+        let s = 2.0 * (1.0 + m22 - m00 - m11).sqrt();
+        Quaternion {
+            w: (m10 - m01) / s,
+            x: (m02 + m20) / s,
+            y: (m12 + m21) / s,
+            z: 0.25 * s,
+        }
+    }
+    .normalize()
+}
+
 pub fn multiply_mat4(a: &[f32; 16], b: &[f32; 16]) -> [f32; 16] {
     let mut result = [0.0f32; 16];
     for i in 0..4 {
@@ -223,7 +264,7 @@ pub fn forward_kinematics(
             let combined = multiply_mat4(&parent.to_matrix(), &local_transforms[i].to_matrix());
             global[i] = Transform {
                 translation: (combined[3], combined[7], combined[11]),
-                rotation: Quaternion::identity(),
+                rotation: mat4_to_quaternion(&combined),
                 scale: (1.0, 1.0, 1.0),
             };
         }

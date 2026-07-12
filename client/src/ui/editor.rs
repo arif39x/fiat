@@ -64,7 +64,7 @@ impl EditorState {
             logs: vec![LogEntry {
                 timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
                 level: LogLevel::Info,
-                message: String::from("Fiatra initialized"),
+                message: String::from("initial initialized"),
             }],
             ws_tx,
             metrics: PerformanceMetrics::default(),
@@ -110,7 +110,7 @@ impl EditorState {
             .height_range(44.0..=44.0)
             .show(ctx, |ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.label(RichText::new("Fiatra").strong().size(14.0).color(Color32::WHITE));
+                    ui.label(RichText::new("initial").strong().size(14.0).color(Color32::WHITE));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let fps_color = if self.metrics.fps > 30.0 { GREEN } else if self.metrics.fps > 15.0 { YELLOW } else { RED };
                         ui.label(RichText::new(format!("{:.0} FPS", self.metrics.fps)).font(FontId::monospace(11.0)).color(fps_color));

@@ -28,7 +28,7 @@ pub async fn run() {
 
     let window = Arc::new(
         WindowBuilder::new()
-            .with_title("Fiatra — AI Character & Animation Studio")
+            .with_title("initial — AI Character & Animation Studio")
             .build(&event_loop)
             .expect("Failed to create window"),
     );

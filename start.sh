@@ -2,14 +2,14 @@
 set -e
 
 cleanup() {
-    echo "Shutting down Fiatra..."
+    echo "Shutting down initial..."
     kill $PID_MATH 2>/dev/null
     wait $PID_MATH 2>/dev/null
-    echo "Fiatra Offline."
+    echo "initial Offline."
 }
 trap cleanup EXIT
 
-echo "Starting Fiatra..."
+echo "Starting initial..."
 
 for port in 8081; do
     pid=$(ss -tlnp "sport = :$port" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1)
