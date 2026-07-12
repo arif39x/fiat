@@ -3,10 +3,11 @@ pub mod export;
 pub mod gizmo;
 pub mod mesh;
 pub mod raycast;
-pub mod scene;
+pub mod shaders;
+pub mod skin;
 pub mod static_renderer;
 
 pub use camera::OrbitCamera;
 pub use mesh::{StaticVertex, Vertex};
 pub use static_renderer::{identity_matrix, translation_matrix, scale_matrix, multiply_matrices, StaticRenderer};
-pub use scene::SkinRenderer;
+pub use skin::SkinRenderer;

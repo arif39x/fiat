@@ -72,7 +72,7 @@ impl StaticRenderer {
     pub fn new(device: &wgpu::Device, _queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("static_mesh.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("static_mesh.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/static_mesh.wgsl").into()),
         });
 
         let vertex_layout = wgpu::VertexBufferLayout {

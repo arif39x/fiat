@@ -10,12 +10,13 @@ from core.animation.motion import MotionClip
 from core.animation.retarget import build_bone_name_map, retarget_clip
 from core.animation.skeleton import Pose, Skeleton
 from core.jobs import JobQueue
-from core.llm import LLMRouter, SYSTEM_PROMPT
+from core.llm.prompt import SYSTEM_PROMPT
 from core.ml.model_registry import get_default_registry
-from core.ml.pose_interpolation import procedural_interpolate
-from core.ml.style_transfer import apply_style_transfer
-from core.ml.text_to_mesh import generate_mesh
-from core.ml.text_to_motion import generate_motion
+from core.ml.generators.pose_interpolation import procedural_interpolate
+from core.ml.generators.style_transfer import apply_style_transfer
+from core.ml.generators.text_to_mesh import generate_mesh
+from core.ml.generators.text_to_motion import generate_motion
+from core.websocket.handlers import LLMRouter
 
 app = FastAPI()
 

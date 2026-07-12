@@ -2,7 +2,7 @@ use egui::{
     Align, Color32, FontId, Frame, Layout, Margin, RichText, ScrollArea, TextEdit,
 };
 
-use super::style::*;
+use crate::ui::style::*;
 
 #[derive(Clone, PartialEq)]
 pub enum MessageRole {

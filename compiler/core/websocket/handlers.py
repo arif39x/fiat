@@ -5,13 +5,13 @@ import asyncio
 from typing import Any, Dict, List, Optional
 
 from ..scene_manager import SceneManager
-from ..executors.material_executor import MaterialExecutor
-from ..executors.mesh_executor import MeshExecutor
-from ..executors.motion_executor import MotionExecutor
-from ..executors.primitive_executor import PrimitiveExecutor
-from ..executors.scene_editor import SceneEditor
-from ..executors.skeleton_executor import SkeletonExecutor
-from ..executors.texture_executor import TextureExecutor
+from ..executors.material import MaterialExecutor
+from ..executors.mesh import MeshExecutor
+from ..executors.motion import MotionExecutor
+from ..executors.primitive import PrimitiveExecutor
+from ..executors.editor import SceneEditor
+from ..executors.skeleton import SkeletonExecutor
+from ..executors.texture import TextureExecutor
 
 
 class LLMClient:
