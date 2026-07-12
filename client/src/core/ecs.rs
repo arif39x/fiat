@@ -79,6 +79,7 @@ pub struct Selected;
 pub struct EcsWorld {
     next_id: EntityId,
     components: HashMap<TypeId, HashMap<EntityId, Box<dyn Any>>>,
+    alive: std::collections::HashSet<EntityId>,
 }
 
 impl EcsWorld {
@@ -89,7 +90,17 @@ impl EcsWorld {
     pub fn spawn(&mut self) -> EntityId {
         let id = self.next_id;
         self.next_id += 1;
+        self.alive.insert(id);
         id
+    }
+
+    pub fn is_alive(&self, entity: EntityId) -> bool {
+        self.alive.contains(&entity)
+    }
+
+    pub fn despawn(&mut self, entity: EntityId) {
+        self.alive.remove(&entity);
+        self.components.values_mut().for_each(|map| { map.remove(&entity); });
     }
 
     pub fn add<T: 'static>(&mut self, entity: EntityId, component: T) {

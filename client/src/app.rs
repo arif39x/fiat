@@ -16,7 +16,7 @@ use crate::core::skeleton::Skeleton;
 use crate::network::{EntityData, ServerMessage};
 use crate::render::export::{export_asset, ExportFormat, ExportParams};
 use crate::render::gizmo::collect_gizmo_data;
-use crate::render::mesh::{create_cube, create_plane, create_sphere};
+use crate::render::mesh::{create_cube, create_cylinder, create_plane, create_sphere};
 use crate::render::raycast::pick_entity;
 use crate::render::{OrbitCamera, SkinRenderer, StaticRenderer, Vertex};
 use crate::ui::{EditorState, LogLevel};
@@ -524,7 +524,7 @@ pub async fn run() {
                                     MeshType::Sphere(seg) => create_sphere(seg),
                                     MeshType::Plane => create_plane(),
                                     MeshType::Quad => create_plane(),
-                                    MeshType::Cylinder => create_cube(),
+                                    MeshType::Cylinder => create_cylinder(16),
                                     MeshType::Custom => continue,
                                 };
                                 static_renderer.add_mesh(verts, idxs, world_mat, [albedo.0, albedo.1, albedo.2], metallic, roughness);

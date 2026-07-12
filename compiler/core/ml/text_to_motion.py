@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
-from typing import Optional
+from typing import Optional, Set
 
 from ..animation.math import Quaternion
 from ..animation.motion import MotionClip
@@ -14,6 +14,15 @@ def _load_skeleton() -> Skeleton:
     path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "asset", "base_skeletons", "humanoid.json")
     with open(path) as f:
         return Skeleton.from_dict(json.load(f))
+
+
+def _find_joint(names: list[str], keywords: Set[str]) -> int:
+    for n, name in enumerate(names):
+        nl = name.lower()
+        for kw in keywords:
+            if kw in nl:
+                return n
+    return -1
 
 
 def generate_motion(
@@ -38,23 +47,25 @@ def generate_motion(
         motion_type = "idle"
         num_frames = 30
 
-    def idx(sub: str) -> int:
-        for n, name in enumerate(names):
-            if sub in name:
-                return n
-        return -1
+    root = _find_joint(names, {"hips", "root", "hip", "pelvis", "spine0"})
+    spine = _find_joint(names, {"spine1", "spine_1", "chest"})
+    chest = _find_joint(names, {"spine2", "spine_2", "chest", "upper_chest"})
+    neck = _find_joint(names, {"neck"})
+    head = _find_joint(names, {"head"})
 
-    hip = idx("hips")
-    spine = idx("spine")
-    chest = idx("chest")
-    lul = idx("left_upper_leg")
-    lll = idx("left_lower_leg")
-    rul = idx("right_upper_leg")
-    rll = idx("right_lower_leg")
-    lua = idx("left_upper_arm")
-    lla = idx("left_lower_arm")
-    rua = idx("right_upper_arm")
-    rla = idx("right_lower_arm")
+    lul = _find_joint(names, {"left_upper_leg", "thigh_l", "upper_leg_l", "left_thigh", "left_hip"})
+    lll = _find_joint(names, {"left_lower_leg", "shin_l", "lower_leg_l", "left_shin", "left_knee"})
+    lfoot = _find_joint(names, {"left_foot", "foot_l", "left_ankle"})
+    rul = _find_joint(names, {"right_upper_leg", "thigh_r", "upper_leg_r", "right_thigh", "right_hip"})
+    rll = _find_joint(names, {"right_lower_leg", "shin_r", "lower_leg_r", "right_shin", "right_knee"})
+    rfoot = _find_joint(names, {"right_foot", "foot_r", "right_ankle"})
+
+    lua = _find_joint(names, {"left_upper_arm", "upper_arm_l", "left_arm", "arm_l", "left_shoulder"})
+    lla = _find_joint(names, {"left_lower_arm", "lower_arm_l", "left_forearm", "forearm_l", "left_elbow"})
+    lhand = _find_joint(names, {"left_hand", "hand_l"})
+    rua = _find_joint(names, {"right_upper_arm", "upper_arm_r", "right_arm", "arm_r", "right_shoulder"})
+    rla = _find_joint(names, {"right_lower_arm", "lower_arm_r", "right_forearm", "forearm_r", "right_elbow"})
+    rhand = _find_joint(names, {"right_hand", "hand_r"})
 
     frames: list[list[Quaternion]] = []
     root_positions: list[tuple[float, float, float]] = []
@@ -68,56 +79,69 @@ def generate_motion(
         if motion_type == "walk":
             speed = 1.0
             swing = math.sin(phase * speed) * 0.5
-            if lul >= 0:
-                rots[lul] = Quaternion.from_axis_angle((1, 0, 0), swing)
-            if rul >= 0:
-                rots[rul] = Quaternion.from_axis_angle((1, 0, 0), -swing)
-            if lll >= 0:
-                rots[lll] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, swing) * 0.4)
-            if rll >= 0:
-                rots[rll] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, -swing) * 0.4)
+            for j, antiswing in [(lul, swing), (rul, -swing)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), antiswing)
+            for j, s in [(lll, swing), (rll, -swing)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, s) * 0.4)
+            for j, s in [(lfoot, swing * 0.5), (rfoot, -swing * 0.5)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, s) * 0.3)
             arm = -swing * 0.4
-            if lua >= 0:
-                rots[lua] = Quaternion.from_axis_angle((1, 0, 0), arm)
-            if rua >= 0:
-                rots[rua] = Quaternion.from_axis_angle((1, 0, 0), -arm)
-            if hip >= 0:
-                rots[hip] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * speed) * 0.04)
+            for j, s in [(lua, arm), (rua, -arm)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), s)
+            for j, s in [(lla, arm * 0.3), (rla, -arm * 0.3)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), s)
+            if root >= 0:
+                rots[root] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * speed) * 0.04)
+            if spine >= 0:
+                rots[spine] = Quaternion.from_axis_angle((1, 0, 0), math.sin(phase * speed) * 0.02)
             bounce = abs(math.sin(phase * speed)) * 0.04
             rp = (0.0, bounce, t * 1.5)
         elif motion_type == "run":
             speed = 2.5
             swing = math.sin(phase * speed) * 0.8
-            if lul >= 0:
-                rots[lul] = Quaternion.from_axis_angle((1, 0, 0), swing)
-            if rul >= 0:
-                rots[rul] = Quaternion.from_axis_angle((1, 0, 0), -swing)
-            if lll >= 0:
-                rots[lll] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, swing) * 0.3)
-            if rll >= 0:
-                rots[rll] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, -swing) * 0.3)
+            for j, antiswing in [(lul, swing), (rul, -swing)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), antiswing)
+            for j, s in [(lll, swing), (rll, -swing)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), max(0.0, s) * 0.3)
             arm = -swing * 0.5
-            if lua >= 0:
-                rots[lua] = Quaternion.from_axis_angle((1, 0, 0), arm)
-            if rua >= 0:
-                rots[rua] = Quaternion.from_axis_angle((1, 0, 0), -arm)
-            if hip >= 0:
-                rots[hip] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * speed) * 0.06)
+            for j, s in [(lua, arm), (rua, -arm)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), s)
+            for j, s in [(lla, arm * 0.2), (rla, -arm * 0.2)]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), s)
+            if root >= 0:
+                rots[root] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * speed) * 0.06)
+            if spine >= 0:
+                rots[spine] = Quaternion.from_axis_angle((1, 0, 0), math.sin(phase * speed) * 0.03)
             bounce = abs(math.sin(phase * speed)) * 0.08
             rp = (0.0, bounce, t * 5.0)
         elif motion_type == "wave":
-            if rua >= 0:
-                rots[rua] = Quaternion.from_axis_angle((0, 0, 1), -1.2)
+            for j in [rua, rla, rhand]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((0, 0, 1), -1.2)
             if rla >= 0:
                 rots[rla] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * 3.0) * 0.8)
-            if lua >= 0:
-                rots[lua] = Quaternion.from_axis_angle((1, 0, 0), -0.3)
+            for j in [lua, lla, lhand]:
+                if j >= 0:
+                    rots[j] = Quaternion.from_axis_angle((1, 0, 0), -0.3)
+            if neck >= 0:
+                rots[neck] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * 2.0) * 0.1)
         else:
             breathe = math.sin(phase * 0.5) * 0.02
             if spine >= 0:
                 rots[spine] = Quaternion.from_axis_angle((1, 0, 0), breathe)
             if chest >= 0:
                 rots[chest] = Quaternion.from_axis_angle((1, 0, 0), breathe * 0.5)
+            if head >= 0:
+                rots[head] = Quaternion.from_axis_angle((0, 0, 1), math.sin(phase * 1.2) * 0.01)
 
         frames.append(rots)
         root_positions.append(rp)

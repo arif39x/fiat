@@ -275,21 +275,42 @@ impl EditorState {
 
     pub fn handle_entities(&mut self, entities: &[EntityData]) {
         for ed in entities {
-            let eid = self.scene.world.spawn();
-            self.scene.world.add(eid, TransformComponent::identity());
-            self.scene.world.add(eid, LabelComponent {
-                name: ed.label.clone(),
-                entity_type: ed.entity_type.clone(),
-            });
+            let eid = if let Some(uid) = ed.entity_id {
+                if self.scene.world.is_alive(uid) {
+                    uid
+                } else {
+                    let nid = self.scene.world.spawn();
+                    self.scene.world.add(nid, TransformComponent::identity());
+                    self.scene.world.add(nid, LabelComponent {
+                        name: ed.label.clone(),
+                        entity_type: ed.entity_type.clone(),
+                    });
+                    nid
+                }
+            } else {
+                let nid = self.scene.world.spawn();
+                self.scene.world.add(nid, TransformComponent::identity());
+                self.scene.world.add(nid, LabelComponent {
+                    name: ed.label.clone(),
+                    entity_type: ed.entity_type.clone(),
+                });
+                nid
+            };
 
             match ed.entity_type.as_str() {
                 "generate_skeleton" => {
                     if let Ok(skel) = serde_json::from_value::<crate::core::skeleton::Skeleton>(ed.data.clone()) {
-                        self.scene.world.add(eid, SkeletonComponent { skeleton: skel });
+                        if self.scene.world.get::<SkeletonComponent>(eid).is_some() {
+                            if let Some(s) = self.scene.world.get_mut::<SkeletonComponent>(eid) {
+                                s.skeleton = skel;
+                            }
+                        } else {
+                            self.scene.world.add(eid, SkeletonComponent { skeleton: skel });
+                        }
                     }
                 }
                 "generate_mesh" => {
-                    self.scene.world.add(eid, MeshComponent { mesh_data: None, mesh_type: None });
+                    self.scene.world.add(eid, MeshComponent { mesh_data: Some(ed.data.clone()), mesh_type: None });
                 }
                 "generate_motion" => {
                     self.scene.world.add(eid, MotionComponent {

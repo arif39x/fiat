@@ -250,6 +250,22 @@ pub fn multiply_mat4(a: &[f32; 16], b: &[f32; 16]) -> [f32; 16] {
     result
 }
 
+pub fn invert_affine(m: &[f32; 16]) -> [f32; 16] {
+    let r00 = m[0]; let r01 = m[4]; let r02 = m[8];
+    let r10 = m[1]; let r11 = m[5]; let r12 = m[9];
+    let r20 = m[2]; let r21 = m[6]; let r22 = m[10];
+    let t0 = m[3]; let t1 = m[7]; let t2 = m[11];
+    [
+        r00, r01, r02, 0.0,
+        r10, r11, r12, 0.0,
+        r20, r21, r22, 0.0,
+        -(r00 * t0 + r01 * t1 + r02 * t2),
+        -(r10 * t0 + r11 * t1 + r12 * t2),
+        -(r20 * t0 + r21 * t1 + r22 * t2),
+        1.0,
+    ]
+}
+
 pub fn forward_kinematics(
     local_transforms: &[Transform],
     parent_indices: &[i32],

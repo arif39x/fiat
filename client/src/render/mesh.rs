@@ -102,6 +102,43 @@ pub fn create_sphere(segments: u32) -> (Vec<StaticVertex>, Vec<u32>) {
     (vertices, indices)
 }
 
+pub fn create_cylinder(segments: u32) -> (Vec<StaticVertex>, Vec<u32>) {
+    let radius = 0.5;
+    let height = 1.0;
+    let half = height * 0.5;
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+
+    for i in 0..=segments {
+        let angle = 2.0 * std::f32::consts::PI * i as f32 / segments as f32;
+        let ca = angle.cos();
+        let sa = angle.sin();
+        vertices.push(StaticVertex {
+            position: [ca * radius, -half, sa * radius],
+            normal: [ca, 0.0, sa],
+            uv: [i as f32 / segments as f32, 0.0],
+        });
+        vertices.push(StaticVertex {
+            position: [ca * radius, half, sa * radius],
+            normal: [ca, 0.0, sa],
+            uv: [i as f32 / segments as f32, 1.0],
+        });
+    }
+    for i in 0..segments {
+        let a = i * 2;
+        let b = a + 1;
+        let c = (i + 1) * 2;
+        let d = c + 1;
+        indices.push(a);
+        indices.push(c);
+        indices.push(b);
+        indices.push(b);
+        indices.push(c);
+        indices.push(d);
+    }
+    (vertices, indices)
+}
+
 pub fn create_plane() -> (Vec<StaticVertex>, Vec<u32>) {
     let vertices = vec![
         StaticVertex { position: [-0.5, 0.0, -0.5], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] },

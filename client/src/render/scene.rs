@@ -3,7 +3,7 @@ use std::mem;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
-use crate::core::math::{forward_kinematics, multiply_mat4, Transform};
+use crate::core::math::{forward_kinematics, invert_affine, multiply_mat4, Transform};
 use crate::core::skeleton::Pose;
 use crate::render::camera::OrbitCamera;
 use crate::render::mesh::Vertex;
@@ -38,16 +38,12 @@ pub struct SkinRenderer {
     skin_uniform_buf: wgpu::Buffer,
     joint_matrix_buf: wgpu::Buffer,
     camera_buf: wgpu::Buffer,
-    #[allow(dead_code)]
-    #[allow(dead_code)]
     light_buf: wgpu::Buffer,
     bind_group_0: wgpu::BindGroup,
     bind_group_1: wgpu::BindGroup,
-    #[allow(dead_code)]
+    bind_group_layout_1: wgpu::BindGroupLayout,
     fallback_texture: wgpu::Texture,
-    #[allow(dead_code)]
     fallback_view: wgpu::TextureView,
-    #[allow(dead_code)]
     fallback_sampler: wgpu::Sampler,
     mesh_buffers: Option<SkinMeshBuffers>,
     rest_inv_bind: Vec<[f32; 16]>,
@@ -61,6 +57,16 @@ struct SkinMeshBuffers {
 }
 
 impl SkinRenderer {
+    pub fn update_light(&self, queue: &wgpu::Queue, direction: [f32; 3], color: [f32; 3], ambient: [f32; 3]) {
+        let light = LightRaw {
+            direction,
+            padding: 0.0,
+            color,
+            ambient,
+        };
+        queue.write_buffer(&self.light_buf, 0, bytemuck::bytes_of(&light));
+    }
+
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("skin.wgsl"),
@@ -240,6 +246,7 @@ impl SkinRenderer {
             light_buf,
             bind_group_0,
             bind_group_1,
+            bind_group_layout_1,
             fallback_texture,
             fallback_view,
             fallback_sampler,
@@ -298,6 +305,72 @@ impl SkinRenderer {
         self.rest_inv_bind = rest_global.iter().map(|t| invert_affine(&t.to_matrix())).collect();
     }
 
+    pub fn update_skeleton(&mut self, skeleton: &crate::core::skeleton::Skeleton) {
+        let parent_indices: Vec<i32> = skeleton.joints.iter().map(|j| j.parent_index).collect();
+        let rest_local: Vec<Transform> = skeleton.joints.iter().map(|j| {
+            let t = &j.local_transform;
+            Transform {
+                translation: (t.translation[0], t.translation[1], t.translation[2]),
+                rotation: crate::core::math::Quaternion {
+                    w: t.rotation.w,
+                    x: t.rotation.x,
+                    y: t.rotation.y,
+                    z: t.rotation.z,
+                },
+                scale: (t.scale[0], t.scale[1], t.scale[2]),
+            }
+        }).collect();
+        let rest_global = forward_kinematics(&rest_local, &parent_indices);
+        self.rest_inv_bind = rest_global.iter().map(|t| invert_affine(&t.to_matrix())).collect();
+        self.joint_count = skeleton.joint_count() as u32;
+    }
+
+    pub fn load_texture(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, bytes: &[u8]) {
+        let img = match image::load_from_memory(bytes) {
+            Ok(img) => img.to_rgba8(),
+            Err(_) => return,
+        };
+        let dimensions = img.dimensions();
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("skin_texture"),
+            size: wgpu::Extent3d { width: dimensions.0, height: dimensions.1, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        queue.write_texture(
+            texture.as_image_copy(),
+            &img,
+            wgpu::ImageDataLayout { offset: 0, bytes_per_row: Some(4 * dimensions.0), rows_per_image: Some(dimensions.1) },
+            wgpu::Extent3d { width: dimensions.0, height: dimensions.1, depth_or_array_layers: 1 },
+        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        self.fallback_texture = texture;
+        self.fallback_view = view;
+        self.fallback_sampler = sampler;
+        self.bind_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("skin_bg1"),
+            layout: &self.bind_group_layout_1,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: self.camera_buf.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.fallback_sampler) },
+                wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&self.fallback_view) },
+            ],
+        });
+    }
+
     pub fn update_pose(&self, queue: &wgpu::Queue, pose: &Pose, camera: &OrbitCamera) {
         let parent_indices: Vec<i32> = pose.skeleton.joints.iter().map(|j| j.parent_index).collect();
         let local = pose.local_transforms();
@@ -343,18 +416,4 @@ impl SkinRenderer {
     }
 }
 
-fn invert_affine(m: &[f32; 16]) -> [f32; 16] {
-    let r00 = m[0]; let r01 = m[4]; let r02 = m[8];
-    let r10 = m[1]; let r11 = m[5]; let r12 = m[9];
-    let r20 = m[2]; let r21 = m[6]; let r22 = m[10];
-    let t0 = m[3]; let t1 = m[7]; let t2 = m[11];
-    [
-        r00, r01, r02, 0.0,
-        r10, r11, r12, 0.0,
-        r20, r21, r22, 0.0,
-        -(r00 * t0 + r01 * t1 + r02 * t2),
-        -(r10 * t0 + r11 * t1 + r12 * t2),
-        -(r20 * t0 + r21 * t1 + r22 * t2),
-        1.0,
-    ]
-}
+

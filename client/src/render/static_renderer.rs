@@ -289,6 +289,18 @@ impl StaticRenderer {
         self.bind_group_0 = Some(bind_group_0);
     }
 
+    pub fn update_light(&self, queue: &wgpu::Queue, direction: [f32; 3], color: [f32; 3], ambient: [f32; 3]) {
+        let light = LightRaw {
+            direction,
+            padding: 0.0,
+            color,
+            _gap: 0.0,
+            ambient,
+            _padding: 0.0,
+        };
+        queue.write_buffer(&self.light_buf, 0, bytemuck::bytes_of(&light));
+    }
+
     pub fn update_camera(&self, queue: &wgpu::Queue, camera: &OrbitCamera) {
         let vp = camera.view_proj();
         let eye = camera.eye();

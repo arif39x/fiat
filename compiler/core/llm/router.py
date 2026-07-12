@@ -138,6 +138,7 @@ class LLMRouter:
         }
 
     def sync_scene(self, entities: list):
+        incoming_ids = set()
         for ent in entities:
             eid = ent.get("entity_id")
             if eid is None:
@@ -146,6 +147,7 @@ class LLMRouter:
             else:
                 if eid >= self.scene._next_id:
                     self.scene._next_id = eid + 1
+            incoming_ids.add(eid)
             label = ent.get("label", "")
             entity_type = ent.get("entity_type", "primitive")
             data = {
@@ -163,6 +165,9 @@ class LLMRouter:
                 existing.entity_type = entity_type
                 if isinstance(existing.data, dict):
                     existing.data.update(data)
+        stale = [eid for eid in list(self.scene.entities.keys()) if eid not in incoming_ids]
+        for eid in stale:
+            self.scene.remove_entity(eid)
 
     def _format_scene_context(self) -> str:
         if not self.scene.entities:
