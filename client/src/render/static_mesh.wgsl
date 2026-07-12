@@ -17,8 +17,12 @@ struct Material {
     ambient_occlusion: f32,
 };
 
-@group(0) @binding(0) var<uniform> model_matrix: mat4x4<f32>;
-@group(0) @binding(1) var<uniform> material: Material;
+struct InstanceData {
+    model_matrix: mat4x4<f32>,
+    material: Material,
+};
+
+@group(0) @binding(0) var<storage, read> instances: array<InstanceData>;
 
 @group(1) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(1) var<uniform> light: Light;
@@ -34,25 +38,28 @@ struct VSOutput {
     @location(0) normal: vec3<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) world_pos: vec3<f32>,
+    @location(3) albedo: vec4<f32>,
 };
 
 @vertex
-fn vs_main(input: VSInput) -> VSOutput {
-    let world_pos = model_matrix * vec4<f32>(input.position, 1.0);
-    let world_normal = (model_matrix * vec4<f32>(input.normal, 0.0)).xyz;
+fn vs_main(input: VSInput, @builtin(instance_index) instance_idx: u32) -> VSOutput {
+    let inst = instances[instance_idx];
+    let world_pos = inst.model_matrix * vec4<f32>(input.position, 1.0);
+    let world_normal = (inst.model_matrix * vec4<f32>(input.normal, 0.0)).xyz;
     var output: VSOutput;
     output.position = camera.view_proj * world_pos;
     output.normal = normalize(world_normal);
     output.uv = input.uv;
     output.world_pos = world_pos.xyz;
+    output.albedo = inst.material.albedo;
     return output;
 }
 
 @fragment
 fn fs_main(input: VSOutput) -> @location(0) vec4<f32> {
     let ndotl = max(dot(normalize(input.normal), normalize(-light.direction)), 0.0);
-    let ambient_term = light.ambient * material.albedo.rgb;
-    let diffuse_term = material.albedo.rgb * light.color * ndotl;
+    let ambient_term = light.ambient * input.albedo.rgb;
+    let diffuse_term = input.albedo.rgb * light.color * ndotl;
     let final_color = ambient_term + diffuse_term;
     return vec4<f32>(final_color, 1.0);
 }

@@ -35,13 +35,21 @@ struct LightRaw {
     _padding: f32,
 }
 
-pub struct StaticMeshGpu {
-    vertex_buf: wgpu::Buffer,
-    index_buf: wgpu::Buffer,
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct InstanceDataRaw {
+    model_matrix: [f32; 16],
+    material: MaterialRaw,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct IndirectDrawRaw {
     index_count: u32,
-    model_buf: wgpu::Buffer,
-    material_buf: wgpu::Buffer,
-    bind_group_0: wgpu::BindGroup,
+    instance_count: u32,
+    first_index: u32,
+    base_vertex: i32,
+    first_instance: u32,
 }
 
 pub struct StaticRenderer {
@@ -50,8 +58,14 @@ pub struct StaticRenderer {
     light_buf: wgpu::Buffer,
     bind_group_layout_0: wgpu::BindGroupLayout,
     bind_group_1: wgpu::BindGroup,
-    meshes: Vec<StaticMeshGpu>,
-    pool: Vec<StaticMeshGpu>,
+    pending_vertices: Vec<StaticVertex>,
+    pending_indices: Vec<u32>,
+    pending_instances: Vec<InstanceDataRaw>,
+    pending_indirect: Vec<IndirectDrawRaw>,
+    vertex_buf: Option<wgpu::Buffer>,
+    index_buf: Option<wgpu::Buffer>,
+    instance_buf: Option<wgpu::Buffer>,
+    bind_group_0: Option<wgpu::BindGroup>,
 }
 
 impl StaticRenderer {
@@ -101,17 +115,7 @@ impl StaticRenderer {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -201,15 +205,19 @@ impl StaticRenderer {
             light_buf,
             bind_group_layout_0,
             bind_group_1,
-            meshes: Vec::new(),
-            pool: Vec::new(),
+            pending_vertices: Vec::new(),
+            pending_indices: Vec::new(),
+            pending_instances: Vec::new(),
+            pending_indirect: Vec::new(),
+            vertex_buf: None,
+            index_buf: None,
+            instance_buf: None,
+            bind_group_0: None,
         }
     }
 
     pub fn add_mesh(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
         vertices: Vec<StaticVertex>,
         indices: Vec<u32>,
         model_matrix: [f32; 16],
@@ -217,64 +225,68 @@ impl StaticRenderer {
         metallic: f32,
         roughness: f32,
     ) {
-        let material = MaterialRaw {
-            albedo: [albedo[0], albedo[1], albedo[2], 1.0],
-            metallic,
-            roughness,
-            ambient_occlusion: 1.0,
-            _padding: 0.0,
-        };
+        let vertex_offset = self.pending_vertices.len() as i32;
+        let index_offset = self.pending_indices.len() as u32;
 
-        if let Some(mut entry) = self.pool.pop() {
-            queue.write_buffer(&entry.model_buf, 0, bytemuck::bytes_of(&model_matrix));
-            queue.write_buffer(&entry.material_buf, 0, bytemuck::bytes_of(&material));
-            if entry.index_count == indices.len() as u32 {
-                entry.index_count = indices.len() as u32;
-                self.meshes.push(entry);
-                return;
-            }
+        self.pending_vertices.extend(vertices);
+        self.pending_indices.extend(indices.iter().map(|i| *i + vertex_offset as u32));
+
+        self.pending_instances.push(InstanceDataRaw {
+            model_matrix,
+            material: MaterialRaw {
+                albedo: [albedo[0], albedo[1], albedo[2], 1.0],
+                metallic,
+                roughness,
+                ambient_occlusion: 1.0,
+                _padding: 0.0,
+            },
+        });
+
+        self.pending_indirect.push(IndirectDrawRaw {
+            index_count: indices.len() as u32,
+            instance_count: 1,
+            first_index: index_offset,
+            base_vertex: 0,
+            first_instance: self.pending_instances.len() as u32 - 1,
+        });
+    }
+
+    pub fn flush(&mut self, device: &wgpu::Device) {
+        let count = self.pending_indices.len();
+        if count == 0 {
+            return;
         }
 
         let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("static_mesh_vertex"),
-            contents: bytemuck::cast_slice(&vertices),
+            label: Some("static_batch_vertex"),
+            contents: bytemuck::cast_slice(&self.pending_vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
+
         let index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("static_mesh_index"),
-            contents: bytemuck::cast_slice(&indices),
+            label: Some("static_batch_index"),
+            contents: bytemuck::cast_slice(&self.pending_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let model_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("static_model"),
-            contents: bytemuck::bytes_of(&model_matrix),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let material_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("static_mat"),
-            contents: bytemuck::bytes_of(&material),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        let instance_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("static_batch_instances"),
+            contents: bytemuck::cast_slice(&self.pending_instances),
+            usage: wgpu::BufferUsages::STORAGE,
         });
 
         let bind_group_0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("static_bg0"),
             layout: &self.bind_group_layout_0,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: model_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: material_buf.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 0, resource: instance_buf.as_entire_binding() },
             ],
         });
 
-        self.meshes.push(StaticMeshGpu {
-            vertex_buf,
-            index_buf,
-            index_count: indices.len() as u32,
-            model_buf,
-            material_buf,
-            bind_group_0,
-        });
+        self.vertex_buf = Some(vertex_buf);
+        self.index_buf = Some(index_buf);
+        self.instance_buf = Some(instance_buf);
+        self.bind_group_0 = Some(bind_group_0);
     }
 
     pub fn update_camera(&self, queue: &wgpu::Queue, camera: &OrbitCamera) {
@@ -287,17 +299,29 @@ impl StaticRenderer {
     }
 
     pub fn clear(&mut self) {
-        self.pool.append(&mut self.meshes);
+        self.pending_vertices.clear();
+        self.pending_indices.clear();
+        self.pending_instances.clear();
+        self.pending_indirect.clear();
     }
 
     pub fn draw<'a>(&'a self, rpass: &mut wgpu::RenderPass<'a>) {
-        for mesh in &self.meshes {
-            rpass.set_pipeline(&self.pipeline);
-            rpass.set_bind_group(0, &mesh.bind_group_0, &[]);
-            rpass.set_bind_group(1, &self.bind_group_1, &[]);
-            rpass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
-            rpass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
-            rpass.draw_indexed(0..mesh.index_count, 0, 0..1);
+        let Some(vertex_buf) = &self.vertex_buf else { return };
+        let Some(index_buf) = &self.index_buf else { return };
+        let Some(bg0) = &self.bind_group_0 else { return };
+
+        rpass.set_pipeline(&self.pipeline);
+        rpass.set_bind_group(0, bg0, &[]);
+        rpass.set_bind_group(1, &self.bind_group_1, &[]);
+        rpass.set_vertex_buffer(0, vertex_buf.slice(..));
+        rpass.set_index_buffer(index_buf.slice(..), wgpu::IndexFormat::Uint32);
+
+        for draw in &self.pending_indirect {
+            rpass.draw_indexed(
+                draw.first_index..draw.first_index + draw.index_count,
+                draw.base_vertex,
+                draw.first_instance..draw.first_instance + draw.instance_count,
+            );
         }
     }
 }
