@@ -131,12 +131,14 @@ class LLMRouter:
         }
 
     def sync_scene(self, entities: list):
-        self.scene.entities.clear()
-        self.scene._next_id = 1
         for ent in entities:
-            eid = ent.get("entity_id", self.scene._next_id)
-            if eid >= self.scene._next_id:
-                self.scene._next_id = eid + 1
+            eid = ent.get("entity_id")
+            if eid is None:
+                eid = self.scene._next_id
+                self.scene._next_id += 1
+            else:
+                if eid >= self.scene._next_id:
+                    self.scene._next_id = eid + 1
             label = ent.get("label", "")
             entity_type = ent.get("entity_type", "primitive")
             data = {
@@ -146,7 +148,14 @@ class LLMRouter:
                 "color": ent.get("color", [0.8, 0.8, 0.8]),
             }
             from ..scene_manager import SceneEntity
-            self.scene.entities[eid] = SceneEntity(eid, entity_type, data, label)
+            existing = self.scene.entities.get(eid)
+            if existing is None:
+                self.scene.entities[eid] = SceneEntity(eid, entity_type, data, label)
+            else:
+                existing.label = label
+                existing.entity_type = entity_type
+                if isinstance(existing.data, dict):
+                    existing.data.update(data)
 
     def _format_scene_context(self) -> str:
         if not self.scene.entities:
