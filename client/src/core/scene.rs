@@ -3,8 +3,6 @@ use std::path::Path;
 
 use crate::core::ecs::*;
 use crate::core::math::{multiply_mat4, Quaternion, Transform};
-use crate::render::mesh::{create_cube, create_plane, create_sphere, StaticVertex};
-use crate::render::static_renderer::translation_matrix;
 
 pub struct Scene {
     pub world: EcsWorld,

@@ -3,7 +3,7 @@ use std::mem;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
-use crate::core::math::multiply_mat4;
+
 use crate::render::camera::OrbitCamera;
 use crate::render::mesh::StaticVertex;
 
@@ -365,6 +365,4 @@ pub fn scale_matrix(sx: f32, sy: f32, sz: f32) -> [f32; 16] {
     ]
 }
 
-pub fn multiply_matrices(a: &[f32; 16], b: &[f32; 16]) -> [f32; 16] {
-    multiply_mat4(a, b)
-}
+

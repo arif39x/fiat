@@ -266,6 +266,24 @@ pub fn invert_affine(m: &[f32; 16]) -> [f32; 16] {
     ]
 }
 
+pub fn vec3_sub(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+pub fn vec3_normalize(v: [f32; 3]) -> [f32; 3] {
+    let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if len < 1e-8 { return [0.0, 1.0, 0.0] }
+    [v[0] / len, v[1] / len, v[2] / len]
+}
+
+pub fn vec3_cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]]
+}
+
+pub fn vec3_dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+    a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+}
+
 pub fn forward_kinematics(
     local_transforms: &[Transform],
     parent_indices: &[i32],

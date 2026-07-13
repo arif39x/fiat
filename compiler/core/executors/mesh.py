@@ -154,46 +154,36 @@ def _cone(radius: float, height: float,
     return verts, idxs
 
 
-class MeshExecutor:
-    """
-    Procedurally generates a mesh from the LLM's prompt + style.
+def execute_mesh(params: dict) -> dict:
+    prompt = (params.get("prompt", "") or "").lower()
+    style = params.get("style", "low-poly")
+    polygon_count = params.get("polygon_count", 500)
 
-    The LLM describes the visual. This executor parses the prompt
-    for shape keywords (sphere, cube, cylinder, cone) and builds
-    the corresponding mesh. This IS a fallback — a real system
-    would call a text-to-3D model instead.
-    """
+    prompt = prompt.lower()
+    verts, idxs = [], []
 
-    def execute(self, params: dict) -> dict:
-        prompt = (params.get("prompt", "") or "").lower()
-        style = params.get("style", "low-poly")
-        polygon_count = params.get("polygon_count", 500)
+    if "sphere" in prompt or "ball" in prompt or "orb" in prompt or "round" in prompt:
+        r = 0.5
+        stacks = max(4, int(math.sqrt(polygon_count / 3)))
+        verts, idxs = _sphere(r, stacks=stacks, slices=stacks * 2)
+    elif "cube" in prompt or "box" in prompt or "block" in prompt:
+        verts, idxs = _box(1.0, 1.0, 1.0)
+    elif "cone" in prompt or "pyramid" in prompt or "wedge" in prompt:
+        verts, idxs = _cone(0.5, 1.0)
+    elif "cylinder" in prompt or "pillar" in prompt or "tube" in prompt or "pipe" in prompt:
+        verts, idxs = _cylinder(0.5, 1.0)
+    elif "plane" in prompt or "flat" in prompt or "ground" in prompt or "floor" in prompt or "platform" in prompt:
+        verts, idxs = _box(2.0, 0.05, 2.0)
+    elif "torus" in prompt or "ring" in prompt or "donut" in prompt:
+        verts, idxs = _sphere(0.5)
+    else:
+        verts, idxs = _box(0.5, 0.5, 0.5)
 
-        prompt = prompt.lower()
-        verts, idxs = [], []
-
-        if "sphere" in prompt or "ball" in prompt or "orb" in prompt or "round" in prompt:
-            r = 0.5
-            stacks = max(4, int(math.sqrt(polygon_count / 3)))
-            verts, idxs = _sphere(r, stacks=stacks, slices=stacks * 2)
-        elif "cube" in prompt or "box" in prompt or "block" in prompt:
-            verts, idxs = _box(1.0, 1.0, 1.0)
-        elif "cone" in prompt or "pyramid" in prompt or "wedge" in prompt:
-            verts, idxs = _cone(0.5, 1.0)
-        elif "cylinder" in prompt or "pillar" in prompt or "tube" in prompt or "pipe" in prompt:
-            verts, idxs = _cylinder(0.5, 1.0)
-        elif "plane" in prompt or "flat" in prompt or "ground" in prompt or "floor" in prompt or "platform" in prompt:
-            verts, idxs = _box(2.0, 0.05, 2.0)
-        elif "torus" in prompt or "ring" in prompt or "donut" in prompt:
-            verts, idxs = _sphere(0.5)
-        else:
-            verts, idxs = _box(0.5, 0.5, 0.5)
-
-        return {
-            "prompt": params.get("prompt", ""),
-            "style": style,
-            "polygon_count": len(idxs),
-            "skeleton_id": params.get("skeleton_id"),
-            "vertices": verts,
-            "indices": idxs,
-        }
+    return {
+        "prompt": params.get("prompt", ""),
+        "style": style,
+        "polygon_count": len(idxs),
+        "skeleton_id": params.get("skeleton_id"),
+        "vertices": verts,
+        "indices": idxs,
+    }

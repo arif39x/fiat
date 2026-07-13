@@ -29,10 +29,6 @@ class SceneEntity:
 
 
 class SceneManager:
-    """
-    Owns all entities in the scene. The LLM references entities by ID.
-    The manager tracks what exists so the LLM can be told about it.
-    """
 
     def __init__(self):
         self.entities: Dict[int, SceneEntity] = {}

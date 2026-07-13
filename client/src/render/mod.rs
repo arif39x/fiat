@@ -9,5 +9,5 @@ pub mod static_renderer;
 
 pub use camera::OrbitCamera;
 pub use mesh::{StaticVertex, Vertex};
-pub use static_renderer::{identity_matrix, translation_matrix, scale_matrix, multiply_matrices, StaticRenderer};
+pub use static_renderer::{identity_matrix, translation_matrix, scale_matrix, StaticRenderer};
 pub use skin::SkinRenderer;

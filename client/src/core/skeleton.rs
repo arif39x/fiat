@@ -26,7 +26,6 @@ pub struct QuaternionData {
 }
 
 impl QuaternionData {
-    #[allow(dead_code)]
     pub fn identity() -> Self {
         Self {
             w: 1.0,
@@ -36,7 +35,6 @@ impl QuaternionData {
         }
     }
 
-    #[allow(dead_code)]
     pub fn to_quat(&self) -> Quaternion {
         Quaternion {
             w: self.w,
@@ -46,7 +44,6 @@ impl QuaternionData {
         }
     }
 
-    #[allow(dead_code)]
     pub fn from_quat(q: Quaternion) -> Self {
         Self {
             w: q.w,

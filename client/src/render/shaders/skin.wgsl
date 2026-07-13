@@ -25,6 +25,7 @@ struct Light {
 @group(1) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(1) var texture_sampler: sampler;
 @group(1) @binding(2) var texture: texture_2d<f32>;
+@group(1) @binding(3) var<uniform> light: Light;
 
 struct VSInput {
     @location(0) position: vec3<f32>,

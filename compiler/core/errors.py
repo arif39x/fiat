@@ -12,7 +12,6 @@ class SourceSpan:
 
 
 class CompilerError(Exception):
-    """Base class for all compiler errors."""
 
     def __init__(
         self,

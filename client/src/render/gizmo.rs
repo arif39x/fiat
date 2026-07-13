@@ -1,3 +1,4 @@
+use crate::core::math::vec3_cross;
 use crate::core::scene::Scene;
 use crate::render::mesh::StaticVertex;
 
@@ -124,11 +125,11 @@ pub fn collect_gizmo_data(scene: &Scene) -> Vec<(Vec<StaticVertex>, Vec<u32>, [f
         // Build a proper rotation matrix for the arrow direction
         let up = [0.0, 1.0, 0.0];
         let fwd = dir;
-        let right = cross(fwd, up);
+        let right = vec3_cross(fwd, up);
         let right_len = (right[0]*right[0] + right[1]*right[1] + right[2]*right[2]).sqrt();
         let (r, u, f) = if right_len > 0.01 {
             let rn = [right[0]/right_len, right[1]/right_len, right[2]/right_len];
-            let u2 = cross(fwd, rn);
+            let u2 = vec3_cross(fwd, rn);
             (rn, u2, fwd)
         } else {
             ([1.0, 0.0, 0.0], [0.0, 0.0, fwd[1].signum()], fwd)
@@ -145,6 +146,4 @@ pub fn collect_gizmo_data(scene: &Scene) -> Vec<(Vec<StaticVertex>, Vec<u32>, [f
     results
 }
 
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]]
-}
+

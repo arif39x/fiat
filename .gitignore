@@ -25,3 +25,4 @@ htmlcov/
 /compiler/generated_shaders/
 /compiler/export/
 *.log
+*.json

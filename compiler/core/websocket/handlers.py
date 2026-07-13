@@ -5,13 +5,13 @@ import asyncio
 from typing import Any, Dict, List, Optional
 
 from ..scene_manager import SceneManager
-from ..executors.material import MaterialExecutor
-from ..executors.mesh import MeshExecutor
-from ..executors.motion import MotionExecutor
-from ..executors.primitive import PrimitiveExecutor
-from ..executors.editor import SceneEditor
-from ..executors.skeleton import SkeletonExecutor
-from ..executors.texture import TextureExecutor
+from ..executors.material import execute_material
+from ..executors.mesh import execute_mesh
+from ..executors.motion import execute_motion
+from ..executors.primitive import execute_primitive
+from ..executors.editor import execute_editor
+from ..executors.skeleton import execute_skeleton
+from ..executors.texture import execute_texture
 
 
 class LLMClient:
@@ -41,12 +41,6 @@ class LLMClient:
 
 
 class LLMRouter:
-    """
-    One router. One prompt. No hardcoded knowledge.
-
-    The system prompt teaches the LLM what output schemas are available.
-    The LLM decides everything. The executors just validate and convert.
-    """
 
     def __init__(self, system_prompt: str, llm_endpoint: str):
         self.system_prompt = system_prompt
@@ -56,13 +50,13 @@ class LLMRouter:
         self.message_history: List[dict] = []
 
         self.executors = {
-            "generate_skeleton": SkeletonExecutor(),
-            "generate_mesh": MeshExecutor(),
-            "generate_motion": MotionExecutor(),
-            "generate_texture": TextureExecutor(),
-            "edit_scene": SceneEditor(),
-            "create_primitive": PrimitiveExecutor(),
-            "assign_material": MaterialExecutor(),
+            "generate_skeleton": execute_skeleton,
+            "generate_mesh": execute_mesh,
+            "generate_motion": execute_motion,
+            "generate_texture": execute_texture,
+            "edit_scene": execute_editor,
+            "create_primitive": execute_primitive,
+            "assign_material": execute_material,
         }
 
     def register_ws(self, ws):
@@ -109,7 +103,7 @@ class LLMRouter:
                 continue
 
             try:
-                result = executor.execute(params)
+                result = executor(params)
             except Exception as e:
                 await self.broadcast({"type": "Progress", "action": action_type, "progress": 0.0, "message": f"Error: {e}"})
                 continue

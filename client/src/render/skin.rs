@@ -177,6 +177,11 @@ impl SkinRenderer {
                         multisampled: false, sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2,
                     }, count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None,
+                    }, count: None,
+                },
             ],
         });
 
@@ -195,6 +200,7 @@ impl SkinRenderer {
                 wgpu::BindGroupEntry { binding: 0, resource: camera_buf.as_entire_binding() },
                 wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&fallback_sampler) },
                 wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&fallback_view) },
+                wgpu::BindGroupEntry { binding: 3, resource: light_buf.as_entire_binding() },
             ],
         });
 
@@ -370,6 +376,7 @@ impl SkinRenderer {
                 wgpu::BindGroupEntry { binding: 0, resource: self.camera_buf.as_entire_binding() },
                 wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.fallback_sampler) },
                 wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&self.fallback_view) },
+                wgpu::BindGroupEntry { binding: 3, resource: self.light_buf.as_entire_binding() },
             ],
         });
     }

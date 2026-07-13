@@ -29,7 +29,6 @@ impl FABRIKSolver {
         }
 
         let mut positions: Vec<(f32, f32, f32)> = chain.iter().map(|&idx| {
-            let _local = &pose.joint_rotations[idx];
             let base = &skeleton.joints[idx].local_transform;
             let parent_pos = if skeleton.joints[idx].parent_index >= 0 {
                 let pidx = skeleton.joints[idx].parent_index as usize;
@@ -79,7 +78,6 @@ impl FABRIKSolver {
             let mut rots = pose.joint_rotations.clone();
             for i in 1..chain.len() {
                 let idx = chain[i];
-                let _pidx = chain[i-1];
                 let dx = positions[i].0 - positions[i-1].0;
                 let dy = positions[i].1 - positions[i-1].1;
                 let dz = positions[i].2 - positions[i-1].2;
@@ -157,7 +155,6 @@ impl FABRIKSolver {
         let mut rots = pose.joint_rotations.clone();
         for i in 1..chain.len() {
             let idx = chain[i];
-            let _pidx = chain[i-1];
             let dx = positions[i].0 - positions[i-1].0;
             let dy = positions[i].1 - positions[i-1].1;
             let dz = positions[i].2 - positions[i-1].2;

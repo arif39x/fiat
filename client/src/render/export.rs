@@ -53,18 +53,18 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
 
     for v in vertices {
         let p = &v["position"];
-        pos_data.extend_from_slice(&f32_to_bytes(p[0].as_f64().unwrap_or(0.0) as f32));
-        pos_data.extend_from_slice(&f32_to_bytes(p[1].as_f64().unwrap_or(0.0) as f32));
-        pos_data.extend_from_slice(&f32_to_bytes(p[2].as_f64().unwrap_or(0.0) as f32));
+        pos_data.extend_from_slice(&f32::to_le_bytes(p[0].as_f64().unwrap_or(0.0) as f32));
+        pos_data.extend_from_slice(&f32::to_le_bytes(p[1].as_f64().unwrap_or(0.0) as f32));
+        pos_data.extend_from_slice(&f32::to_le_bytes(p[2].as_f64().unwrap_or(0.0) as f32));
 
         let n_ = &v["normal"];
-        norm_data.extend_from_slice(&f32_to_bytes(n_[0].as_f64().unwrap_or(0.0) as f32));
-        norm_data.extend_from_slice(&f32_to_bytes(n_[1].as_f64().unwrap_or(0.0) as f32));
-        norm_data.extend_from_slice(&f32_to_bytes(n_[2].as_f64().unwrap_or(0.0) as f32));
+        norm_data.extend_from_slice(&f32::to_le_bytes(n_[0].as_f64().unwrap_or(0.0) as f32));
+        norm_data.extend_from_slice(&f32::to_le_bytes(n_[1].as_f64().unwrap_or(0.0) as f32));
+        norm_data.extend_from_slice(&f32::to_le_bytes(n_[2].as_f64().unwrap_or(0.0) as f32));
 
         let u = &v["uv"];
-        uv_data.extend_from_slice(&f32_to_bytes(u[0].as_f64().unwrap_or(0.0) as f32));
-        uv_data.extend_from_slice(&f32_to_bytes(u[1].as_f64().unwrap_or(0.0) as f32));
+        uv_data.extend_from_slice(&f32::to_le_bytes(u[0].as_f64().unwrap_or(0.0) as f32));
+        uv_data.extend_from_slice(&f32::to_le_bytes(u[1].as_f64().unwrap_or(0.0) as f32));
 
         let bi = &v["bone_indices"];
         for j in 0..4 {
@@ -73,10 +73,10 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
         }
 
         let bw = &v["bone_weights"];
-        weight_data.extend_from_slice(&f32_to_bytes(bw[0].as_f64().unwrap_or(0.0) as f32));
-        weight_data.extend_from_slice(&f32_to_bytes(bw[1].as_f64().unwrap_or(0.0) as f32));
-        weight_data.extend_from_slice(&f32_to_bytes(bw[2].as_f64().unwrap_or(0.0) as f32));
-        weight_data.extend_from_slice(&f32_to_bytes(bw[3].as_f64().unwrap_or(0.0) as f32));
+        weight_data.extend_from_slice(&f32::to_le_bytes(bw[0].as_f64().unwrap_or(0.0) as f32));
+        weight_data.extend_from_slice(&f32::to_le_bytes(bw[1].as_f64().unwrap_or(0.0) as f32));
+        weight_data.extend_from_slice(&f32::to_le_bytes(bw[2].as_f64().unwrap_or(0.0) as f32));
+        weight_data.extend_from_slice(&f32::to_le_bytes(bw[3].as_f64().unwrap_or(0.0) as f32));
     }
 
     let mut index_data = Vec::with_capacity(m * 4);
@@ -253,9 +253,7 @@ pub fn export_glb(params: &ExportParams) -> Result<(), String> {
     Ok(())
 }
 
-fn f32_to_bytes(v: f32) -> [u8; 4] {
-    v.to_le_bytes()
-}
+
 
 pub fn export_fbx(params: &ExportParams) -> Result<(), String> {
     let vertices = params.mesh["vertices"].as_array().ok_or("No vertices")?;

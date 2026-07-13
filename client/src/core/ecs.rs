@@ -1,6 +1,5 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 pub type EntityId = u64;
 
@@ -172,21 +171,3 @@ impl EcsWorld {
 }
 
 pub trait Component: 'static {}
-
-pub struct Query<'a, T: 'static> {
-    world: &'a EcsWorld,
-    _marker: PhantomData<T>,
-}
-
-impl<'a, T: 'static> Query<'a, T> {
-    pub fn new(world: &'a EcsWorld) -> Self {
-        Self {
-            world,
-            _marker: PhantomData,
-        }
-    }
-
-    pub fn iter(&self) -> Vec<(EntityId, &T)> {
-        self.world.query::<T>()
-    }
-}

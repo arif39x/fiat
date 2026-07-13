@@ -1,4 +1,4 @@
-use crate::core::math::multiply_mat4;
+use crate::core::math::{multiply_mat4, vec3_cross, vec3_dot, vec3_normalize, vec3_sub};
 
 pub struct OrbitCamera {
     pub pitch: f32,
@@ -59,35 +59,13 @@ fn perspective_reverse_z(fov_y: f32, aspect: f32, near: f32, far: f32) -> [f32; 
 }
 
 fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
-    let fwd = normalize(sub(target, eye));
-    let right = normalize(cross(fwd, up));
-    let up2 = cross(right, fwd);
+    let fwd = vec3_normalize(vec3_sub(target, eye));
+    let right = vec3_normalize(vec3_cross(fwd, up));
+    let up2 = vec3_cross(right, fwd);
     [
         right[0], up2[0], -fwd[0], 0.0,
         right[1], up2[1], -fwd[1], 0.0,
         right[2], up2[2], -fwd[2], 0.0,
-        -dot(right, eye), -dot(up2, eye), dot(fwd, eye), 1.0,
+        -vec3_dot(right, eye), -vec3_dot(up2, eye), vec3_dot(fwd, eye), 1.0,
     ]
-}
-
-fn sub(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-
-fn normalize(v: [f32; 3]) -> [f32; 3] {
-    let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
-    if len < 1e-8 { return [0.0, 1.0, 0.0]; }
-    [v[0] / len, v[1] / len, v[2] / len]
-}
-
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
